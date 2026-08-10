@@ -1,7 +1,7 @@
 // Módulo de mantenimientos (maestranza): bandeja de daños, órdenes de
 // mantenimiento con insumos, e historial por vehículo.
 const supabase = require('./supabase.js');
-const { traerTodo } = require('./database-supabase.js');
+const { traerTodo, tieneColumnasVisitante } = require('./database-supabase.js');
 
 // Un detalle de inspección cuenta como daño cuando su estado no es
 // "Buen estado" ni el marcador vacío que usa el formulario.
@@ -463,11 +463,15 @@ async function obtenerHistorialVehiculo(vehiculoId) {
 
         if (errorVehiculo || !vehiculo) return null;
 
+        // En los movimientos de visita responde el visitante y no hay asesor
+        const conVisitante = await tieneColumnasVisitante();
+
         const [inspecciones, mantenimientos, insumos] = await Promise.all([
             traerTodo(() => supabase
                 .from('inspecciones')
                 .select(`
                     id, fecha, tipo_entrada, odometro,
+                    ${conVisitante ? 'visitante_nombre,' : ''}
                     asesores:asesor_id ( id, nombre )
                 `)
                 .eq('vehiculo_id', id)
@@ -516,7 +520,7 @@ async function obtenerHistorialVehiculo(vehiculoId) {
                 fecha: i.fecha,
                 tipo_entrada: i.tipo_entrada,
                 odometro: i.odometro,
-                asesor_nombre: i.asesores?.nombre || 'Desconocido',
+                asesor_nombre: i.asesores?.nombre || i.visitante_nombre || 'Desconocido',
                 total_piezas: piezasPorInspeccion[i.id]?.total || 0,
                 total_danos: piezasPorInspeccion[i.id]?.danos || 0
             })),

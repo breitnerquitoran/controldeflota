@@ -418,7 +418,7 @@
                     </div>
 
                     <div class="col-md-6">
-                        <div class="form-group-tablet">
+                        <div class="form-group-tablet" id="advisor-field">
                             <label for="advisor-search">
                                 <i class="fas fa-user-tie"></i>
                                 Asesor Responsable
@@ -427,6 +427,29 @@
                                 <input type="text" id="advisor-search" class="search-input"
                                     placeholder="Buscar asesor..." autocomplete="off">
                                 <div id="advisor-dropdown" class="search-dropdown"></div>
+                            </div>
+                        </div>
+
+                        <!-- En una visita el responsable es el propio visitante,
+                             no un asesor de la flota: se anota su nombre y su DNI -->
+                        <div class="visit-fields" id="visitor-fields">
+                            <div class="form-group-tablet">
+                                <label for="visitor-name">
+                                    <i class="fas fa-user"></i>
+                                    Nombre del visitante
+                                </label>
+                                <input type="text" id="visitor-name" class="form-select-tablet"
+                                    placeholder="Nombres y apellidos" autocomplete="off" maxlength="120">
+                            </div>
+                            <div class="form-group-tablet">
+                                <label for="visitor-dni">
+                                    <i class="fas fa-id-badge"></i>
+                                    DNI del visitante
+                                </label>
+                                <input type="text" id="visitor-dni" class="form-select-tablet"
+                                    placeholder="Ej: 45678912" autocomplete="off" maxlength="12" inputmode="numeric">
+                                <small class="form-text text-muted" id="visitor-dni-help">DNI de 8 dígitos o carné de
+                                    extranjería</small>
                             </div>
                         </div>
                     </div>
@@ -599,6 +622,68 @@
             return fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
         }
 
+        // El nombre y el documento del visitante se escriben a mano: se
+        // muestran en confirmaciones armadas con HTML.
+        function escaparHtml(texto) {
+            return String(texto ?? '').replace(/[&<>"']/g, caracter => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[caracter]);
+        }
+
+        // ============================================================
+        // Visitante: quien responde por la placa de visita
+        // ============================================================
+        // En los movimientos de visita no hay asesor de la flota: se registra
+        // a la persona que llega, con su documento de identidad.
+        function datosVisitante() {
+            return {
+                nombre: document.getElementById('visitor-name').value.trim(),
+                dni: document.getElementById('visitor-dni').value.trim().toUpperCase()
+            };
+        }
+
+        // DNI peruano de 8 dígitos; se admite hasta 12 caracteres para carné
+        // de extranjería y pasaporte.
+        function dniValido(dni) {
+            return /^[A-Z0-9]{8,12}$/.test(dni);
+        }
+
+        function validarVisitante() {
+            const { nombre, dni } = datosVisitante();
+
+            if (!nombre) {
+                return { valido: false, mensaje: 'Indique el nombre del visitante.' };
+            }
+
+            if (!dniValido(dni)) {
+                return {
+                    valido: false,
+                    mensaje: 'El DNI debe tener 8 dígitos (o hasta 12 caracteres si es carné de extranjería).'
+                };
+            }
+
+            return { valido: true, mensaje: '' };
+        }
+
+        // Marca el DNI en rojo solo cuando ya se escribió algo y no cuadra
+        function mostrarAvisoVisitante() {
+            const campo = document.getElementById('visitor-dni');
+            const ayuda = document.getElementById('visitor-dni-help');
+            const dni = campo.value.trim().toUpperCase();
+            const invalido = esMovimientoDeVisita(tipoActual()) && dni.length > 0 && !dniValido(dni);
+
+            campo.classList.toggle('is-invalid', invalido);
+            ayuda.classList.toggle('text-danger', invalido);
+            ayuda.textContent = invalido
+                ? 'Documento inválido: 8 dígitos para DNI, hasta 12 caracteres para carné de extranjería'
+                : 'DNI de 8 dígitos o carné de extranjería';
+        }
+
+        // Quién responde por el movimiento: el asesor o, en visitas, el visitante
+        function responsableListo(tipo) {
+            return esMovimientoDeVisita(tipo) ? validarVisitante().valido : !!selectedAdvisor;
+        }
+
         // ============================================================
         // Odómetro: último valor conocido y validación
         // ============================================================
@@ -725,6 +810,10 @@
             document.getElementById('vehicle-field').style.display = esVisita ? 'none' : '';
             document.getElementById('visit-fields').classList.toggle('show', esVisita);
 
+            // El asesor responsable se reemplaza por los datos del visitante
+            document.getElementById('advisor-field').style.display = esVisita ? 'none' : '';
+            document.getElementById('visitor-fields').classList.toggle('show', esVisita);
+
             const nota = document.getElementById('movement-note');
             if (config && config.nota) {
                 nota.innerHTML = `<i class="fas fa-circle-info me-2"></i>${config.nota}`;
@@ -751,6 +840,7 @@
 
             mostrarUltimoOdometro();
             mostrarAvisoOdometro(validarOdometro());
+            mostrarAvisoVisitante();
         }
 
         // Función para actualizar el estado del botón de inicio
@@ -768,7 +858,7 @@
             const odometroListo = esVisita ? true : !!odometer;
             const validacion = validarOdometro();
 
-            const allFieldsValid = vehiculoListo && selectedAdvisor && odometroListo && type &&
+            const allFieldsValid = vehiculoListo && responsableListo(type) && odometroListo && type &&
                 validacion.estado !== 'error';
             startButton.disabled = !allFieldsValid;
 
@@ -996,6 +1086,8 @@
             let vehiculo = selectedVehicle;
             let placa = '';
 
+            const visitante = datosVisitante();
+
             if (esVisita) {
                 placa = document.getElementById('visit-plate').value.trim().toUpperCase();
                 if (!placa) return;
@@ -1007,7 +1099,9 @@
             const filas = [
                 ['Movimiento', config.etiqueta],
                 ['Vehículo', placa],
-                ['Asesor', selectedAdvisor.nombre],
+                ...(esVisita
+                    ? [['Visitante', visitante.nombre], ['DNI', visitante.dni]]
+                    : [['Asesor', selectedAdvisor.nombre]]),
                 ['Odómetro', odometro ? `${formatearKm(parseInt(odometro, 10))} km` : 'No registrado']
             ];
 
@@ -1017,7 +1111,7 @@
                 html: '<table style="margin:0 auto;text-align:left;font-size:0.95rem;">' +
                     filas.map(([etiqueta, valor]) =>
                         `<tr><td style="padding:4px 12px 4px 0;color:#6c757d;">${etiqueta}</td>` +
-                        `<td style="padding:4px 0;font-weight:600;">${valor}</td></tr>`).join('') +
+                        `<td style="padding:4px 0;font-weight:600;">${escaparHtml(valor)}</td></tr>`).join('') +
                     '</table>' +
                     '<p style="margin-top:14px;font-size:0.85rem;color:#6c757d;">' +
                     'Este movimiento no requiere inspección de daños ni verificación de EPP.</p>',
@@ -1064,7 +1158,10 @@
                     body: JSON.stringify({
                         fecha: new Date().toISOString(),
                         vehiculo_id: vehiculo.id,
-                        asesor_id: selectedAdvisor.id,
+                        // En una visita responde el visitante, no un asesor
+                        asesor_id: esVisita ? null : selectedAdvisor.id,
+                        visitante_nombre: esVisita ? visitante.nombre : null,
+                        visitante_dni: esVisita ? visitante.dni : null,
                         tipo_entrada: tipo,
                         odometro: odometro ? parseInt(odometro, 10) : null,
                         detalles: []
@@ -1079,7 +1176,7 @@
                 const resultado = await Swal.fire({
                     icon: 'success',
                     title: 'Movimiento registrado',
-                    html: `<strong>${config.etiqueta}</strong><br>${placa}`,
+                    html: `<strong>${config.etiqueta}</strong><br>${escaparHtml(placa)}`,
                     showCancelButton: true,
                     confirmButtonText: 'Registrar otro',
                     cancelButtonText: 'Ver histórico',
@@ -1117,6 +1214,8 @@
             document.getElementById('visit-plate').value = '';
             document.getElementById('visit-brand').value = '';
             document.getElementById('visit-model').value = '';
+            document.getElementById('visitor-name').value = '';
+            document.getElementById('visitor-dni').value = '';
             hideDropdowns();
 
             aplicarTipoMovimiento();
@@ -1133,11 +1232,16 @@
             const vehiculoListo = esVisita ? placaVisita.length > 0 : !!selectedVehicle;
             const odometroListo = esVisita ? true : !!odometer;
 
-            if (!vehiculoListo || !selectedAdvisor || !odometroListo || !type) {
+            if (!vehiculoListo || !responsableListo(type) || !odometroListo || !type) {
+                // En visitas el motivo suele ser el nombre o el DNI del visitante
+                const detalleVisita = esVisita && vehiculoListo && !responsableListo(type)
+                    ? validarVisitante().mensaje
+                    : '';
+
                 Swal.fire({
                     icon: 'warning',
                     title: 'Campos incompletos',
-                    text: 'Por favor, complete todos los campos antes de continuar.',
+                    text: detalleVisita || 'Por favor, complete todos los campos antes de continuar.',
                     confirmButtonText: 'Entendido',
                     confirmButtonColor: '#f39c12'
                 });
@@ -1286,6 +1390,13 @@
             });
 
             document.getElementById('visit-plate').addEventListener('input', updateStartButtonState);
+
+            document.getElementById('visitor-name').addEventListener('input', updateStartButtonState);
+
+            document.getElementById('visitor-dni').addEventListener('input', function () {
+                mostrarAvisoVisitante();
+                updateStartButtonState();
+            });
 
             // Listener para el botón de inicio
             const startButton = document.getElementById('start-inspection');
