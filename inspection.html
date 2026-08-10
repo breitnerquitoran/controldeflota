@@ -1,0 +1,3492 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspección Vehicular</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="app.css">
+
+    <!-- Estilos adicionales para el layout horizontal -->
+    <style>
+        #container {
+            width: 100%;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        #content-layout {
+            display: flex;
+            flex-direction: row;
+            margin-top: 20px;
+        }
+
+        /* Estilo principal para el diagrama y la tabla */
+        .diagram-box {
+            flex: 0 0 49%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            margin-right: 15px;
+        }
+
+        #datatable-box {
+            flex: 0 0 49%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #f8f9fa;
+        }
+
+        /* Estilos para mostrar imágenes en el datatable */
+        #inspection-table img {
+            max-width: 150px;
+            max-height: 100px;
+            object-fit: contain;
+            display: block;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        /* Ajustes responsivos */
+        @media (max-width: 992px) {
+            #content-layout {
+                flex-direction: column;
+            }
+
+            .diagram-box {
+                margin-right: 0;
+                margin-bottom: 15px;
+                flex: 0 0 100%;
+            }
+
+            #datatable-box {
+                flex: 0 0 100%;
+            }
+        }
+
+        /* Estilos para el header */
+        #header .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        #header .col-md-2 {
+            flex: 0 0 20%;
+            padding: 0 10px;
+        }
+
+        #header .form-group {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 0;
+        }
+
+        #header .form-control,
+        #header .form-select {
+            flex: 1;
+            min-height: 38px;
+            width: 100%;
+        }
+
+        #header label {
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Ajustes responsivos para el header */
+        @media (max-width: 992px) {
+            #header .col-md-2 {
+                flex: 0 0 100%;
+                margin-bottom: 10px;
+            }
+        }
+
+        /* Estilos para el header compacto */
+        .inspection-header {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 25px;
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+
+        .header-compact {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 25px;
+            background: linear-gradient(135deg, #0097c6 0%, #007a9e 100%);
+            color: white;
+            cursor: pointer;
+            min-height: 50px;
+            transition: all 0.3s ease;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .header-compact:hover {
+            background: linear-gradient(135deg, #0782a8 0%, #00728f 100%);
+        }
+
+        .header-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex: 1;
+            width: 100%;
+            padding-right: 10px;
+            flex-wrap: nowrap;
+            gap: 8px;
+        }
+
+        .summary-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 6px 8px;
+            border-radius: 6px;
+            backdrop-filter: blur(10px);
+            flex: 1;
+            min-width: 0;
+            margin: 0 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-align: center;
+            justify-content: center;
+        }
+
+        .summary-value {
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .summary-item i {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .toggle-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            min-width: 90px;
+            justify-content: center;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .toggle-btn i {
+            transition: transform 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .toggle-btn.expanded i {
+            transform: rotate(180deg);
+        }
+
+        .header-expanded {
+            padding: 25px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-top: 1px solid #e9ecef;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header-expanded .form-control,
+        .header-expanded .form-select {
+            background-color: #f8f9fa !important;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.95rem;
+        }
+
+        .header-expanded .form-control:focus,
+        .header-expanded .form-select:focus {
+            border-color: #0097c6;
+            box-shadow: 0 0 0 0.2rem rgba(0,151,198, 0.15);
+        }
+
+        .header-expanded label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .edit-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .edit-btn:hover {
+            background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        /* Checks de validación de equipamiento en el header compacto */
+        .header-checks {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            margin-right: 12px;
+        }
+
+        .check-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .check-pill:hover {
+            background: rgba(255, 255, 255, 0.22);
+        }
+
+        .check-pill.checked {
+            background: #e264a3;
+            border-color: #c94b8c;
+        }
+
+        .check-pill .check-status {
+            font-size: 0.9rem;
+        }
+
+        .check-pill .item-icon {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        /* Sección de validación de equipamiento en el header expandido */
+        .equipment-check-section {
+            margin-top: 20px;
+            padding-top: 18px;
+            border-top: 1px dashed #dde3e8;
+        }
+
+        .equipment-check-title {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .equipment-check-title i {
+            color: #0097c6;
+        }
+
+        .equipment-check-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .equipment-check-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+
+        .equipment-check-item:hover {
+            border-color: #0097c6;
+        }
+
+        .equipment-check-item .item-icon {
+            color: #0097c6;
+            font-size: 1rem;
+        }
+
+        .equipment-check-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #e264a3;
+            cursor: pointer;
+        }
+
+        .equipment-check-item.checked {
+            border-color: #e264a3;
+            background: #fdeef6;
+        }
+
+        .equipment-check-item.checked .item-icon {
+            color: #c94b8c;
+        }
+
+        /* Responsive para header compacto */
+        @media (max-width: 992px) {
+            .header-summary {
+                gap: 15px;
+            }
+
+            .summary-item {
+                font-size: 0.85rem;
+                padding: 6px 10px;
+            }
+
+            .summary-value {
+                max-width: 100px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-compact {
+                padding: 10px 15px;
+                min-height: 50px;
+            }
+
+            .header-summary {
+                gap: 10px;
+            }
+
+            .summary-item {
+                font-size: 0.8rem;
+                padding: 5px 8px;
+            }
+
+            .summary-value {
+                max-width: 80px;
+            }
+
+            .toggle-btn {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Mejorar el layout principal para más espacio */
+        #content-layout {
+            margin-top: 10px;
+        }
+
+        .diagram-box {
+            flex: 0 0 48%;
+            margin-right: 2%;
+        }
+
+        #datatable-box {
+            flex: 0 0 50%;
+        }
+
+        /* ============ Modal de selección (rediseñado) ============ */
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 30, 40, 0.55);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+
+        #modal-overlay .modal2 {
+            background: #ffffff;
+            padding: 0;
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+            width: 100%;
+            max-width: 640px;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            animation: modalPop 0.25s ease;
+        }
+
+        @keyframes modalPop {
+            from { opacity: 0; transform: translateY(12px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Encabezado con barra de acento */
+        #modal-overlay .modal2 h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            text-align: left;
+            padding: 18px 60px 18px 24px;
+            background: linear-gradient(135deg, #0097c6 0%, #007a9e 100%);
+            border-radius: 18px 18px 0 0;
+            letter-spacing: 0.2px;
+        }
+
+        /* El formulario aporta el padding interno */
+        #modal-overlay #condition-form {
+            padding: 22px 24px 24px;
+        }
+
+        /* Etiquetas de sección */
+        .modal-section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #8a97a3;
+            margin: 0 0 10px 2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .modal-section-label i {
+            color: #0097c6;
+            font-size: 0.8rem;
+        }
+
+        /* Botón de cerrar sobre el encabezado */
+        #modal-overlay .close-btn {
+            position: absolute;
+            top: 14px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+            border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            font-size: 20px;
+            line-height: 1;
+            font-weight: 400;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        #modal-overlay .close-btn:hover {
+            background: rgba(255, 255, 255, 0.32);
+            transform: rotate(90deg);
+        }
+
+        /* Contenedor de opciones horizontal */
+        .damage-options-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 22px;
+            padding: 0;
+        }
+
+        /* Chip neutro con punto de color por tipo */
+        .damage-option {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 11px 10px;
+            border: 1.5px solid #e4e9ee;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            background: #fbfcfd;
+            min-height: 44px;
+            position: relative;
+            user-select: none;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            color: #4a5763;
+        }
+
+        .damage-option::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--dot, #cbd3da);
+            flex-shrink: 0;
+            transition: all 0.18s ease;
+        }
+
+        .damage-option:hover {
+            border-color: var(--dot, #cbd3da);
+            background: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .damage-option input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .damage-option .damage-text {
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        /* Estado seleccionado: se rellena con el color del tipo */
+        .damage-option.selected {
+            color: #ffffff;
+            border-color: var(--dot);
+            background: var(--dot);
+            box-shadow: 0 3px 10px var(--dot-shadow, rgba(0, 0, 0, 0.12));
+        }
+
+        .damage-option.selected::before {
+            background: #ffffff;
+        }
+
+        /* Color por tipo de daño */
+        .damage-option.good-state { --dot: #2ecc71; --dot-shadow: rgba(46, 204, 113, 0.35); }
+        .damage-option.scratched  { --dot: #f39c12; --dot-shadow: rgba(243, 156, 18, 0.35); }
+        .damage-option.chipped    { --dot: #0097c6; --dot-shadow: rgba(0, 151, 198, 0.35); }
+        .damage-option.dented     { --dot: #e74c3c; --dot-shadow: rgba(231, 76, 60, 0.35); }
+        .damage-option.faded      { --dot: #9b59b6; --dot-shadow: rgba(155, 89, 182, 0.35); }
+        .damage-option.broken     { --dot: #7d3c98; --dot-shadow: rgba(125, 60, 152, 0.35); }
+        .damage-option.other      { --dot: #7f8c8d; --dot-shadow: rgba(127, 140, 141, 0.35); }
+
+        /* Textarea de observaciones */
+        .observations {
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 72px;
+            padding: 12px 14px;
+            border: 1.5px solid #e4e9ee;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 22px;
+            transition: all 0.2s ease;
+            background: #fbfcfd;
+            color: #2c3e50;
+        }
+
+        .observations:focus {
+            outline: none;
+            border-color: #0097c6;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(0, 151, 198, 0.12);
+        }
+
+        .observations::placeholder {
+            color: #aab4bd;
+        }
+
+        /* Sección de cámara / evidencia fotográfica */
+        #camera-options {
+            margin-bottom: 22px;
+            text-align: center;
+            background: #f6f9fb;
+            border: 1.5px dashed #cfdae2;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        #camera-options button#capture-btn {
+            padding: 11px 22px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: linear-gradient(135deg, #0097c6 0%, #007a9e 100%);
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 3px 10px rgba(0, 151, 198, 0.25);
+        }
+
+        #camera-options button#capture-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 14px rgba(0, 151, 198, 0.35);
+        }
+
+        /* Vista previa de la foto capturada */
+        #photo-preview {
+            max-width: 100%;
+            max-height: 240px;
+            width: auto;
+            border-radius: 10px;
+            margin-top: 14px;
+            border: 3px solid #ffffff;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+            object-fit: contain;
+        }
+
+        /* Botón de guardar prominente */
+        .modal2 .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 14px rgba(39, 174, 96, 0.28);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .modal2 .btn:hover {
+            background: linear-gradient(135deg, #229954 0%, #27ae60 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(39, 174, 96, 0.4);
+        }
+
+        /* Responsive para tablets más pequeñas */
+        @media (max-width: 768px) {
+            .damage-options-container {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .damage-option {
+                min-height: 46px;
+                padding: 11px 10px;
+            }
+
+            .damage-option .damage-text {
+                font-size: 12.5px;
+            }
+        }
+
+        /* Para pantallas muy pequeñas */
+        @media (max-width: 480px) {
+            #modal-overlay .modal2 {
+                max-width: 100%;
+            }
+
+            #modal-overlay #condition-form {
+                padding: 18px 16px 20px;
+            }
+
+            #modal-overlay .modal2 h3 {
+                font-size: 1.05rem;
+                padding: 16px 54px 16px 18px;
+            }
+
+            .damage-options-container {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+        }
+
+        /* ===== Selector de lado del diagrama (motos) ===== */
+        #side-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        #side-toggle .side-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #5f6b73;
+            background: #ffffff;
+            border: 1px solid #d7dee3;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #side-toggle .side-btn:hover {
+            border-color: #0097c6;
+            color: #0097c6;
+        }
+
+        #side-toggle .side-btn.active {
+            background: #0097c6;
+            border-color: #0097c6;
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(0, 151, 198, 0.3);
+        }
+
+        /* Espeja el diagrama para mostrar el lado derecho.
+           Se aplica solo al SVG, nunca al contenedor, para que los botones no se inviertan. */
+        .diagram-box.lado-der svg {
+            transform: scaleX(-1);
+        }
+
+        /* Estilos para piezas dañadas en el SVG */
+        .damaged-piece {
+            transition: all 0.3s ease !important;
+        }
+
+        .damaged-piece:hover {
+            opacity: 0.8 !important;
+            filter: brightness(1.1) !important;
+        }
+
+        /* Estilos para diferentes tipos de daño */
+        .damage-good {
+            fill: #2ecc71 !important;
+            stroke: #27ae60 !important;
+        }
+
+        .damage-scratched {
+            fill: #f39c12 !important;
+            stroke: #e67e22 !important;
+        }
+
+        .damage-chipped {
+            fill: #0097c6 !important;
+            stroke: #0782a8 !important;
+        }
+
+        .damage-dented {
+            fill: #e74c3c !important;
+            stroke: #c0392b !important;
+        }
+
+        .damage-faded {
+            fill: #9b59b6 !important;
+            stroke: #8e44ad !important;
+        }
+
+        .damage-broken {
+            fill: #7d3c98 !important;
+            stroke: #512e5f !important;
+        }
+
+        .damage-other {
+            fill: #95a5a6 !important;
+            stroke: #7f8c8d !important;
+        }
+
+        /* Estilos para el modal de firma */
+        #signature-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 15000;
+        }
+
+        .signature-modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .signature-header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .signature-header h3 {
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .signature-header p {
+            color: #6c757d;
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .signature-canvas-container {
+            border: 3px solid #dee2e6;
+            border-radius: 10px;
+            margin: 20px 0;
+            background: #f8f9fa;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #signature-canvas {
+            display: block;
+            width: 100%;
+            height: 200px;
+            cursor: crosshair;
+            background: white;
+            border-radius: 7px;
+        }
+
+        .signature-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #adb5bd;
+            font-size: 1.1rem;
+            pointer-events: none;
+            font-style: italic;
+        }
+
+        .signature-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .signature-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .signature-btn-clear {
+            background: #6c757d;
+            color: white;
+        }
+
+        .signature-btn-clear:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .signature-btn-cancel {
+            background: #dc3545;
+            color: white;
+        }
+
+        .signature-btn-cancel:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .signature-btn-confirm {
+            background: #28a745;
+            color: white;
+            font-weight: 600;
+        }
+
+        .signature-btn-confirm:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
+        .signature-btn:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .signature-info {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #1565c0;
+            font-size: 0.95rem;
+        }
+
+        .signature-info i {
+            margin-right: 8px;
+            color: #1976d2;
+        }
+
+        /* Aceptación de responsabilidad sobre el equipamiento */
+        .signature-terms {
+            background: #ffffff;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 16px;
+            margin: 18px 0;
+        }
+
+        .signature-terms-title {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .signature-terms-title i {
+            color: #0097c6;
+        }
+
+        .signature-terms-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .signature-term-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .signature-term-item .term-item-icon {
+            width: 18px;
+            text-align: center;
+            color: #0097c6;
+        }
+
+        .signature-term-item .term-item-label {
+            flex: 1;
+        }
+
+        .signature-term-item .term-item-status {
+            font-size: 0.82rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+
+        .signature-term-item.present {
+            background: #eafaf1;
+        }
+
+        .signature-term-item.present .term-item-icon,
+        .signature-term-item.present .term-item-status {
+            color: #27ae60;
+        }
+
+        .signature-term-item.absent {
+            background: #fdeef0;
+        }
+
+        .signature-term-item.absent .term-item-icon,
+        .signature-term-item.absent .term-item-status {
+            color: #e74c3c;
+        }
+
+        .signature-terms-check {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            cursor: pointer;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: #fbfcfd;
+            transition: all 0.2s ease;
+            margin: 0;
+        }
+
+        .signature-terms-check:hover {
+            border-color: #0097c6;
+        }
+
+        .signature-terms-check input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #e264a3;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .signature-terms-check span {
+            font-size: 0.88rem;
+            line-height: 1.4;
+            color: #495057;
+        }
+
+        .signature-terms-check.checked {
+            border-color: #e264a3;
+            background: #fdeef6;
+        }
+
+        /* Responsive para tablets */
+        @media (max-width: 768px) {
+            .signature-modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+
+            #signature-canvas {
+                height: 150px;
+            }
+
+            .signature-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .signature-btn {
+                width: 100%;
+                justify-content: center;
+                margin-bottom: 10px;
+            }
+        }
+
+        /* Estilos específicos para tablets en orientación landscape */
+        @media (orientation: landscape) and (max-height: 600px) {
+            .signature-modal-content {
+                max-height: 95vh;
+            }
+
+            #signature-canvas {
+                height: 120px;
+            }
+        }
+    </style>
+
+    <!-- Script de verificación inicial de datos -->
+    <script>
+        // Verificar la disponibilidad de los datos necesarios al inicio
+        (function () {
+            // Obtener valores de localStorage con los nombres correctos
+            const vehiculoId = localStorage.getItem('selectedVehicleId');
+            const vehiculoNombre = localStorage.getItem('selectedVehicleName');
+            const tipoVehiculo = localStorage.getItem('vehicleType');
+            const asesorId = localStorage.getItem('selectedAdvisorId');
+            const asesorNombre = localStorage.getItem('selectedAdvisorName');
+
+            console.log('Datos en localStorage al cargar inspection.html:');
+            console.log('- selectedVehicleId:', vehiculoId);
+            console.log('- selectedVehicleName:', vehiculoNombre);
+            console.log('- vehicleType:', tipoVehiculo);
+            console.log('- selectedAdvisorId:', asesorId);
+            console.log('- selectedAdvisorName:', asesorNombre);
+
+            // Verificar si hay datos completos en localStorage (datos anteriores de index.html)
+            // Solo verificar si no estamos accediendo directamente a la página
+            if (document.referrer.includes('index.html')) {
+                if (!vehiculoId || vehiculoId === 'undefined' || vehiculoId === 'null' ||
+                    !vehiculoNombre || vehiculoNombre === 'undefined' || vehiculoNombre === 'null' ||
+                    !asesorId || asesorId === 'undefined' || asesorId === 'null' ||
+                    !asesorNombre || asesorNombre === 'undefined' || asesorNombre === 'null' ||
+                    !tipoVehiculo || tipoVehiculo === 'undefined' || tipoVehiculo === 'null') {
+
+                    console.error('Datos faltantes en localStorage. Redirigiendo a la página principal.');
+                    alert('Datos incompletos. Será redirigido a la página principal para seleccionar vehículo y asesor.');
+
+                    // Limpiar localStorage para evitar problemas futuros
+                    localStorage.clear();
+
+                    // Redirigir a la página principal
+                    window.location.href = 'index.html';
+                    return;
+                }
+            }
+        })();
+    </script>
+
+    <!-- Script principal para inicializar la página -->
+    <script>
+        // Variables globales
+        let selectedVehicle = null;
+        let selectedAdvisor = null;
+        let vehicleType = null;
+
+        // Función para cargar el diagrama del vehículo según su tipo
+        function loadVehicleDiagram(vehicleType) {
+            const diagramContainer = document.getElementById('vehicle-diagram');
+            const loadingElement = document.getElementById('loading-diagram');
+
+            if (!diagramContainer) return;
+
+            // Mostrar mensaje de carga
+            if (loadingElement) {
+                loadingElement.textContent = 'Cargando diagrama...';
+            }
+
+            // Determinar qué archivo cargar según el tipo de vehículo
+            const diagramFile = vehicleType === 'moto' ? 'moto.html' : 'car.html';
+
+            // Cargar el contenido del archivo
+            fetch(diagramFile)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error al cargar el diagrama: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    // Eliminar el mensaje de carga
+                    if (loadingElement) {
+                        loadingElement.remove();
+                    }
+
+                    // Insertar el contenido SVG en el contenedor
+                    diagramContainer.innerHTML = html;
+
+                    // Configurar eventos en el SVG recién cargado
+                    setupSvgEvents();
+
+                    // Botones Izquierda/Derecha (solo motos; el auto es vista cenital)
+                    setupSideToggle();
+
+                    console.log(`Diagrama de ${vehicleType} cargado correctamente`);
+                })
+                .catch(error => {
+                    console.error('Error al cargar el diagrama:', error);
+                    if (loadingElement) {
+                        loadingElement.textContent = 'Error al cargar el diagrama. Por favor, recargue la página.';
+                    }
+                });
+        }
+
+        // Función para poblar el header compacto con datos del localStorage
+        function populateCompactHeader() {
+            // Obtener datos del localStorage
+            const vehicleName = localStorage.getItem('selectedVehicleName');
+            const advisorName = localStorage.getItem('selectedAdvisorName');
+            const odometer = localStorage.getItem('odometerValue');
+            const entryType = localStorage.getItem('entryType');
+            const inspectionDate = localStorage.getItem('inspectionDate');
+
+            // Poblar header compacto
+            document.getElementById('compact-vehicle-info').textContent = vehicleName || 'No seleccionado';
+            document.getElementById('compact-advisor-info').textContent = advisorName || 'No seleccionado';
+            document.getElementById('compact-odometer-info').textContent = odometer ? `${odometer} km` : 'No especificado';
+            document.getElementById('compact-entry-type').innerHTML = entryType === 'entrada'
+                ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7fe0ff;margin-right:6px;vertical-align:middle;"></span>Entrada'
+                : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f9d8e9;margin-right:6px;vertical-align:middle;"></span>Salida';
+
+            // Formatear fecha y hora actual (no la del localStorage)
+            const now = new Date();
+            document.getElementById('compact-date-info').textContent = now.toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Poblar header expandido
+            document.getElementById('vehicle-info').textContent = vehicleName || 'No seleccionado';
+            document.getElementById('advisor-info').textContent = advisorName || 'No seleccionado';
+            document.getElementById('odometer').value = odometer || '';
+
+            // Establecer tipo de entrada/salida
+            const entryExitSelect = document.getElementById('entry-exit');
+            if (entryType) {
+                entryExitSelect.value = entryType;
+            }
+
+            // Establecer fecha y hora
+            const dateTimeElement = document.getElementById('date-time');
+            if (inspectionDate) {
+                const date = new Date(inspectionDate);
+                dateTimeElement.value = date.toLocaleString('es-ES');
+            } else {
+                const now = new Date();
+                dateTimeElement.value = now.toLocaleString('es-ES');
+            }
+        }
+
+        // Función para configurar el toggle del header
+        function setupHeaderToggle() {
+            const toggleBtn = document.getElementById('toggle-header');
+            const headerCompact = document.getElementById('header-compact');
+            const headerExpanded = document.getElementById('header-expanded');
+
+            // Event listener para el botón toggle
+            toggleBtn.addEventListener('click', function () {
+                const isExpanded = headerExpanded.style.display !== 'none';
+
+                if (isExpanded) {
+                    // Contraer
+                    headerExpanded.style.display = 'none';
+                    toggleBtn.classList.remove('expanded');
+                    toggleBtn.title = 'Expandir detalles';
+                } else {
+                    // Expandir
+                    headerExpanded.style.display = 'block';
+                    toggleBtn.classList.add('expanded');
+                    toggleBtn.title = 'Contraer detalles';
+                }
+            });
+
+            // También permitir click en todo el header compacto para expandir
+            headerCompact.addEventListener('click', function (e) {
+                // Solo si no se hizo click en el botón toggle
+                if (!e.target.closest('.toggle-btn')) {
+                    toggleBtn.click();
+                }
+            });
+
+            // Event listener para el botón de editar (placeholder)
+            const editBtn = document.getElementById('edit-header-data');
+            if (editBtn) {
+                editBtn.addEventListener('click', function () {
+                    alert('Para cambiar estos datos, regrese a la página principal.');
+                });
+            }
+        }
+
+        // === Checks de validación de equipamiento ===
+        const EQUIPMENT_ITEMS = {
+            herramientas: { label: 'Herramientas', icon: 'fa-toolbox' },
+            botiquin: { label: 'Botiquín', icon: 'fa-briefcase-medical' },
+            extintor: { label: 'Extintor', icon: 'fa-fire-extinguisher' }
+        };
+
+        // Estado de los checks (true = el vehículo lo lleva)
+        const equipmentState = {
+            herramientas: false,
+            botiquin: false,
+            extintor: false
+        };
+
+        // Ítems relevantes según el tipo de vehículo
+        function getRelevantEquipment() {
+            const type = localStorage.getItem('vehicleType');
+            return type === 'moto' ? ['herramientas'] : ['herramientas', 'botiquin', 'extintor'];
+        }
+
+        // Renderiza los checks en el header compacto y sincroniza el expandido
+        function renderEquipmentChecks() {
+            const relevant = getRelevantEquipment();
+
+            // Header compacto (pills)
+            const compact = document.getElementById('compact-checks');
+            if (compact) {
+                compact.innerHTML = relevant.map(function (key) {
+                    const item = EQUIPMENT_ITEMS[key];
+                    const isChecked = equipmentState[key];
+                    const box = isChecked ? 'fa-check-square' : 'fa-square';
+                    return '<div class="check-pill ' + (isChecked ? 'checked' : '') + '" data-check="' + key + '"' +
+                        ' title="¿El vehículo lleva ' + item.label.toLowerCase() + '?">' +
+                        '<i class="far ' + box + ' check-status"></i>' +
+                        '<i class="fas ' + item.icon + ' item-icon"></i>' +
+                        '<span>' + item.label + '</span>' +
+                        '</div>';
+                }).join('');
+
+                compact.querySelectorAll('.check-pill').forEach(function (el) {
+                    el.addEventListener('click', function (e) {
+                        e.stopPropagation(); // evitar que el click expanda el header
+                        toggleEquipment(el.dataset.check);
+                    });
+                });
+            }
+
+            // Header expandido (checkboxes)
+            document.querySelectorAll('.equipment-check-item').forEach(function (item) {
+                const key = item.dataset.check;
+                const visible = relevant.indexOf(key) !== -1;
+                item.style.display = visible ? '' : 'none';
+                const input = item.querySelector('input[type="checkbox"]');
+                if (input) input.checked = equipmentState[key];
+                item.classList.toggle('checked', equipmentState[key]);
+            });
+        }
+
+        function toggleEquipment(key) {
+            if (!(key in equipmentState)) return;
+            equipmentState[key] = !equipmentState[key];
+            renderEquipmentChecks();
+        }
+
+        // Configura los checkboxes del header expandido y hace el primer render
+        function setupEquipmentChecks() {
+            document.querySelectorAll('.equipment-check-item input[type="checkbox"]').forEach(function (input) {
+                input.addEventListener('change', function () {
+                    const item = input.closest('.equipment-check-item');
+                    if (item) equipmentState[item.dataset.check] = input.checked;
+                    renderEquipmentChecks();
+                });
+            });
+            renderEquipmentChecks();
+        }
+
+        // ===== Lado del diagrama (solo motos) =====
+        // El SVG dibuja la moto mirando a la izquierda. Para el lado derecho no se usa
+        // un segundo archivo: se espeja el mismo SVG con CSS (.diagram-box.lado-der).
+        // Lo que distingue un lado del otro es el sufijo "(izq)" / "(der)" del nombre
+        // de la pieza, que es lo que se guarda en detalle_inspeccion.pieza.
+
+        let ladoActual = 'izq';
+
+        // Piezas cuyo nombre ya indica el lado: no reciben sufijo
+        const PIEZAS_CON_LADO_PROPIO = [
+            'ESPEJO IZQUIERDO', 'ESPEJO DERECHO',
+            'TIMON IZQUIERDO', 'TIMON DERECHO'
+        ];
+
+        // Agrega el sufijo del lado activo al nombre de la pieza
+        function nombreConLado(pieza) {
+            const limpio = nombreSinLado(pieza);
+            if (vehicleType !== 'moto' || PIEZAS_CON_LADO_PROPIO.includes(limpio)) {
+                return limpio;
+            }
+            return `${limpio} (${ladoActual})`;
+        }
+
+        // Quita el sufijo para poder ubicar el grupo dentro del SVG
+        function nombreSinLado(pieza) {
+            return String(pieza || '').replace(/\s*\((izq|der)\)\s*$/i, '').trim();
+        }
+
+        // Devuelve 'izq', 'der' o null si la pieza no está asociada a un lado
+        function ladoDePieza(pieza) {
+            const coincidencia = String(pieza || '').match(/\((izq|der)\)\s*$/i);
+            return coincidencia ? coincidencia[1].toLowerCase() : null;
+        }
+
+        // Inserta los botones Izquierda/Derecha dentro del recuadro del diagrama
+        function setupSideToggle() {
+            const diagramContainer = document.getElementById('vehicle-diagram');
+            if (!diagramContainer || vehicleType !== 'moto') return;
+            if (document.getElementById('side-toggle')) return; // ya estaba montado
+
+            diagramContainer.insertAdjacentHTML('afterbegin',
+                '<div id="side-toggle">' +
+                '<button type="button" class="side-btn active" data-lado="izq">' +
+                '<i class="fas fa-arrow-left"></i> Izquierda</button>' +
+                '<button type="button" class="side-btn" data-lado="der">' +
+                'Derecha <i class="fas fa-arrow-right"></i></button>' +
+                '</div>');
+
+            diagramContainer.querySelectorAll('#side-toggle .side-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    cambiarLado(btn.dataset.lado);
+                });
+            });
+        }
+
+        // Cambia el lado visible: espeja el SVG y repinta las marcas de ese lado
+        function cambiarLado(lado) {
+            if (lado !== 'izq' && lado !== 'der') return;
+
+            ladoActual = lado;
+
+            const diagramContainer = document.getElementById('vehicle-diagram');
+            if (diagramContainer) {
+                diagramContainer.classList.toggle('lado-der', lado === 'der');
+                diagramContainer.querySelectorAll('#side-toggle .side-btn').forEach(function (btn) {
+                    btn.classList.toggle('active', btn.dataset.lado === lado);
+                });
+            }
+
+            // Repintar: las marcas del otro lado no deben verse sobre este
+            if ($.fn.dataTable.isDataTable('#inspection-table')) {
+                updateAllSVGColors();
+            }
+        }
+
+        // Mapeo de colores para cada tipo de daño
+        const damageColors = {
+            'Buen estado': {
+                fill: '#2ecc71',      // Verde claro para relleno
+                stroke: '#27ae60',    // Verde más oscuro para borde
+                opacity: '0.7'        // Transparencia para que se vea bien
+            },
+            'Rayado': {
+                fill: '#f39c12',      // Naranja para relleno
+                stroke: '#e67e22',    // Naranja más oscuro para borde
+                opacity: '0.8'
+            },
+            'Desportillado': {
+                fill: '#0097c6',      // Azul para relleno
+                stroke: '#0782a8',    // Azul más oscuro para borde
+                opacity: '0.8'
+            },
+            'Abollado': {
+                fill: '#e74c3c',      // Rojo para relleno
+                stroke: '#c0392b',    // Rojo más oscuro para borde
+                opacity: '0.8'
+            },
+            'Desgastado': {
+                fill: '#9b59b6',      // Púrpura para relleno
+                stroke: '#8e44ad',    // Púrpura más oscuro para borde
+                opacity: '0.7'
+            },
+            'Roto': {
+                fill: '#7d3c98',      // Violeta oscuro: el daño más severo
+                stroke: '#512e5f',
+                opacity: '0.85'
+            },
+            'Otro': {
+                fill: '#95a5a6',      // Gris para relleno
+                stroke: '#7f8c8d',    // Gris más oscuro para borde
+                opacity: '0.7'
+            }
+        };
+
+        // Función para aplicar color a una pieza del SVG
+        function applyDamageColor(pieceName, conditions) {
+            console.log(`=== APLICANDO COLOR A ${pieceName} ===`);
+            console.log('Condiciones:', conditions);
+
+            // Convertir el nombre de la pieza a formato de ID del SVG
+            // (sin el sufijo de lado: el SVG es el mismo para izquierda y derecha)
+            const svgId = nombreSinLado(pieceName).replace(/\s+/g, '_').toUpperCase();
+            console.log(`Buscando elemento con ID: ${svgId}`);
+
+            // Buscar el elemento SVG por ID
+            const svgElement = document.getElementById(svgId);
+
+            if (svgElement) {
+                console.log('✅ Elemento SVG encontrado:', svgElement);
+
+                // Determinar el color basado en la condición más severa
+                let colorConfig = {
+                    fill: 'white',
+                    stroke: '#000000',
+                    opacity: '1'
+                };
+
+                // Prioridad de severidad (de menos a más severo)
+                const severityOrder = ['Buen estado', 'Desgastado', 'Otro', 'Desportillado', 'Rayado', 'Abollado', 'Roto'];
+
+                let highestSeverity = -1;
+                conditions.forEach(condition => {
+                    const severity = severityOrder.indexOf(condition);
+                    if (severity > highestSeverity) {
+                        highestSeverity = severity;
+                        colorConfig = damageColors[condition] || {
+                            fill: '#95a5a6',
+                            stroke: '#7f8c8d',
+                            opacity: '0.7'
+                        };
+                    }
+                });
+
+                console.log('Configuración de color:', colorConfig);
+
+                // Aplicar el color a todos los elementos path, ellipse, circle, rect dentro del grupo
+                const pathElements = svgElement.querySelectorAll('path, ellipse, circle, rect');
+                console.log(`Encontrados ${pathElements.length} elementos para colorear`);
+
+                pathElements.forEach((element, index) => {
+                    console.log(`Coloreando elemento ${index + 1}:`, element);
+
+                    // Aplicar relleno con color vibrante
+                    element.style.fill = colorConfig.fill;
+                    element.style.fillOpacity = colorConfig.opacity;
+
+                    // Aplicar borde más ancho y visible
+                    element.style.stroke = colorConfig.stroke;
+                    element.style.strokeWidth = '4px'; // Borde más ancho para mejor visibilidad
+                    element.style.strokeOpacity = '1';
+
+                    // Agregar efecto de sombra para mayor impacto visual
+                    element.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+
+                    // Agregar clase para identificar piezas dañadas
+                    element.classList.add('damaged-piece');
+                    element.setAttribute('data-damage-type', conditions.join(', '));
+
+                    // Agregar transición suave
+                    element.style.transition = 'all 0.3s ease';
+                });
+
+                console.log(`✅ Color aplicado a ${pieceName}: ${colorConfig.fill} con borde ${colorConfig.stroke} (${conditions.join(', ')})`);
+            } else {
+                console.warn(`❌ No se encontró el elemento SVG con ID: ${svgId}`);
+                console.log('Elementos disponibles en el SVG:');
+                const allElements = document.querySelectorAll('svg [id]');
+                allElements.forEach(el => console.log(`- ${el.id}`));
+            }
+        }
+
+        // Función para restaurar el color original de una pieza
+        function restorePieceColor(pieceName) {
+            console.log(`=== RESTAURANDO COLOR DE ${pieceName} ===`);
+
+            const svgId = nombreSinLado(pieceName).replace(/\s+/g, '_').toUpperCase();
+            const svgElement = document.getElementById(svgId);
+
+            if (svgElement) {
+                const pathElements = svgElement.querySelectorAll('path, ellipse, circle, rect');
+                pathElements.forEach(element => {
+                    // Restaurar colores originales
+                    element.style.fill = 'white';
+                    element.style.fillOpacity = '1';
+                    element.style.stroke = '#000000';
+                    element.style.strokeWidth = '';
+                    element.style.strokeOpacity = '1';
+
+                    // Remover efectos
+                    element.style.filter = '';
+                    element.style.transition = '';
+
+                    // Remover clases y atributos
+                    element.classList.remove('damaged-piece');
+                    element.removeAttribute('data-damage-type');
+                });
+
+                console.log(`✅ Color restaurado para ${pieceName}`);
+            } else {
+                console.warn(`❌ No se encontró el elemento SVG con ID: ${svgId}`);
+            }
+        }
+
+        // Función para actualizar todos los colores del SVG basado en la tabla
+        function updateAllSVGColors() {
+            // Primero restaurar todos los colores
+            const allSvgGroups = document.querySelectorAll('svg > a > g');
+            allSvgGroups.forEach(group => {
+                const pathElements = group.querySelectorAll('.st2, .st3');
+                pathElements.forEach(path => {
+                    path.style.fill = '#f8f9fa';
+                    path.style.stroke = '#5f5d5d';
+                    path.style.strokeWidth = '';
+                    path.classList.remove('damaged-piece');
+                    path.removeAttribute('data-damage-type');
+                });
+            });
+
+            // Luego aplicar colores basados en los datos de la tabla
+            const table = $('#inspection-table').DataTable();
+            if (table && table.rows) {
+                const data = table.rows().data();
+
+                for (let i = 0; i < data.length; i++) {
+                    const row = data[i];
+                    const pieceName = row[0]; // Columna de Pieza
+                    const conditionText = row[1]; // Columna de Estado
+
+                    // Solo se pintan las marcas del lado que se está viendo
+                    const ladoPieza = ladoDePieza(pieceName);
+                    if (ladoPieza && ladoPieza !== ladoActual) continue;
+
+                    if (conditionText && conditionText !== 'Sin estado') {
+                        const conditions = conditionText.split(', ').map(c => c.trim());
+                        applyDamageColor(pieceName, conditions);
+                    }
+                }
+            }
+        }
+
+        // Cuando la página carga, inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('DOM cargado en inspection.html');
+
+            // Cargar datos desde localStorage
+            selectedVehicle = {
+                id: localStorage.getItem('selectedVehicleId'),
+                name: localStorage.getItem('selectedVehicleName')
+            };
+
+            selectedAdvisor = {
+                id: localStorage.getItem('selectedAdvisorId'),
+                nombre: localStorage.getItem('selectedAdvisorName')
+            };
+
+            vehicleType = localStorage.getItem('vehicleType');
+
+            // Poblar el header compacto con los datos
+            populateCompactHeader();
+
+            // Configurar funcionalidad del header toggle
+            setupHeaderToggle();
+
+            // Configurar los checks de validación de equipamiento según el tipo de vehículo
+            setupEquipmentChecks();
+
+            // Cargar el diagrama según el tipo de vehículo
+            loadVehicleDiagram(vehicleType);
+
+            // Inicializar la tabla de inspección
+            initializeInspectionTable();
+
+            // Configurar evento de guardar inspección
+            const saveButton = document.getElementById('save-inspection-btn');
+            if (saveButton) {
+                saveButton.addEventListener('click', saveInspection);
+            }
+        });
+
+        // Función para configurar eventos en SVG
+        function setupSvgEvents() {
+            console.log('Configurando eventos SVG');
+            const svgLinks = document.querySelectorAll('svg a');
+
+            svgLinks.forEach(link => {
+                // Verificar si el enlace tiene un grupo dentro
+                const group = link.querySelector('g');
+                if (group) {
+                    const id = group.id;
+
+                    // Asegurarnos de que el enlace tiene los eventos correctos
+                    link.setAttribute('onclick', `openModal('${id.replace(/_/g, ' ')}')`);
+                    link.setAttribute('onmousemove', `showTooltip(event, '${id.replace(/_/g, ' ')}')`);
+                    link.setAttribute('onmouseout', 'hideTooltip()');
+                }
+            });
+
+            console.log(`Configurados ${svgLinks.length} elementos SVG con eventos`);
+        }
+
+        // Inicializar la tabla de inspección
+        function initializeInspectionTable() {
+            try {
+                // Verificar si DataTable ya está inicializada
+                const existingTable = $.fn.dataTable.isDataTable('#inspection-table');
+
+                if (!existingTable) {
+                    const table = $('#inspection-table').DataTable({
+                        responsive: true,
+                        language: {
+                            url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
+                        },
+                        columns: [
+                            { title: 'Pieza' },
+                            { title: 'Estado' },
+                            { title: 'Observaciones' },
+                            {
+                                title: 'Foto',
+                                render: function (data, type, row) {
+                                    if (data && data.startsWith('data:image')) {
+                                        return `<img src="${data}" style="max-width: 100px; max-height: 80px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="showFullImage('${data}')">`;
+                                    } else if (data && data.trim() !== '') {
+                                        return `<img src="${data}" style="max-width: 100px; max-height: 80px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="showFullImage('${data}')">`;
+                                    } else {
+                                        return '<span style="color: #999; font-style: italic;">Sin foto</span>';
+                                    }
+                                }
+                            },
+                            {
+                                title: 'Datos Foto',
+                                visible: false, // Columna oculta para almacenar los datos de la foto
+                                searchable: false
+                            }
+                        ],
+                        paging: false,
+                        info: false,
+                        searching: false,
+                        drawCallback: function () {
+                            // Actualizar colores del SVG cada vez que se redibuja la tabla
+                            setTimeout(updateAllSVGColors, 100);
+                        }
+                    });
+
+                    // Event listener para cuando se agregan o eliminan filas
+                    table.on('row-added row-removed', function () {
+                        setTimeout(updateAllSVGColors, 100);
+                    });
+
+                    console.log('Tabla de inspección inicializada');
+                } else {
+                    console.log('La tabla ya estaba inicializada');
+                }
+            } catch (error) {
+                console.error('Error al inicializar la tabla:', error);
+            }
+        }
+
+        // Variables para la firma digital
+        let signatureCanvas = null;
+        let signatureCtx = null;
+        let isDrawing = false;
+        let hasSignature = false;
+        let signatureData = null;
+
+        // Función para inicializar el canvas de firma
+        function initializeSignatureCanvas() {
+            signatureCanvas = document.getElementById('signature-canvas');
+            signatureCtx = signatureCanvas.getContext('2d');
+
+            // Configurar el canvas
+            const rect = signatureCanvas.getBoundingClientRect();
+            signatureCanvas.width = rect.width * 2; // Para alta resolución
+            signatureCanvas.height = rect.height * 2;
+            signatureCtx.scale(2, 2);
+
+            // Configurar el estilo de dibujo
+            signatureCtx.strokeStyle = '#000000';
+            signatureCtx.lineWidth = 2;
+            signatureCtx.lineCap = 'round';
+            signatureCtx.lineJoin = 'round';
+
+            // Event listeners para mouse
+            signatureCanvas.addEventListener('mousedown', startDrawing);
+            signatureCanvas.addEventListener('mousemove', draw);
+            signatureCanvas.addEventListener('mouseup', stopDrawing);
+            signatureCanvas.addEventListener('mouseout', stopDrawing);
+
+            // Event listeners para touch (tablets)
+            signatureCanvas.addEventListener('touchstart', handleTouch);
+            signatureCanvas.addEventListener('touchmove', handleTouch);
+            signatureCanvas.addEventListener('touchend', stopDrawing);
+
+            console.log('Canvas de firma inicializado');
+        }
+
+        // Función para manejar eventos touch
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' :
+                e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            signatureCanvas.dispatchEvent(mouseEvent);
+        }
+
+        // Función para comenzar a dibujar
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = signatureCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (signatureCanvas.width / rect.width) / 2;
+            const y = (e.clientY - rect.top) * (signatureCanvas.height / rect.height) / 2;
+
+            signatureCtx.beginPath();
+            signatureCtx.moveTo(x, y);
+        }
+
+        // Función para dibujar
+        function draw(e) {
+            if (!isDrawing) return;
+
+            const rect = signatureCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (signatureCanvas.width / rect.width) / 2;
+            const y = (e.clientY - rect.top) * (signatureCanvas.height / rect.height) / 2;
+
+            signatureCtx.lineTo(x, y);
+            signatureCtx.stroke();
+
+            // Marcar que hay firma y ocultar placeholder
+            if (!hasSignature) {
+                hasSignature = true;
+                document.getElementById('signature-placeholder').style.display = 'none';
+                updateConfirmSignatureState();
+            }
+        }
+
+        // Habilita el botón de confirmar solo si hay firma Y se aceptó la responsabilidad
+        function updateConfirmSignatureState() {
+            const confirmBtn = document.getElementById('confirm-signature-btn');
+            if (!confirmBtn) return;
+            const acceptCheck = document.getElementById('accept-responsibility-check');
+            const accepted = acceptCheck ? acceptCheck.checked : false;
+            confirmBtn.disabled = !(hasSignature && accepted);
+        }
+
+        // Maneja el cambio del checkbox de aceptación de responsabilidad
+        function onAcceptanceChange() {
+            const acceptCheck = document.getElementById('accept-responsibility-check');
+            const label = document.getElementById('signature-terms-check');
+            if (label && acceptCheck) {
+                label.classList.toggle('checked', acceptCheck.checked);
+            }
+            updateConfirmSignatureState();
+        }
+
+        // Función para parar de dibujar
+        function stopDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                signatureCtx.beginPath();
+            }
+        }
+
+        // Función para limpiar la firma
+        function clearSignature() {
+            signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+            hasSignature = false;
+            document.getElementById('signature-placeholder').style.display = 'block';
+            updateConfirmSignatureState();
+            signatureData = null;
+        }
+
+        // Función para cancelar la firma
+        function cancelSignature() {
+            document.getElementById('signature-modal').style.display = 'none';
+            clearSignature();
+        }
+
+        // Función para confirmar la firma y guardar la inspección
+        async function confirmSignature() {
+            if (!hasSignature) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Firma requerida',
+                    text: 'Por favor, firme antes de continuar',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#0097c6'
+                });
+                return;
+            }
+
+            // Validar la aceptación de responsabilidad sobre el equipamiento
+            const acceptCheck = document.getElementById('accept-responsibility-check');
+            if (!acceptCheck || !acceptCheck.checked) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Aceptación requerida',
+                    text: 'Debe aceptar la responsabilidad sobre el equipamiento antes de continuar',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#e264a3'
+                });
+                return;
+            }
+
+            // Capturar la firma como imagen
+            signatureData = signatureCanvas.toDataURL('image/png');
+
+            // Ocultar el modal de firma
+            document.getElementById('signature-modal').style.display = 'none';
+
+            // Proceder con el guardado de la inspección
+            await saveInspectionWithSignature();
+        }
+
+        // Función para abrir el modal de firma
+        function openSignatureModal() {
+            // Poblar información del modal
+            const advisorName = localStorage.getItem('selectedAdvisorName');
+            const vehicleName = localStorage.getItem('selectedVehicleName');
+            const now = new Date();
+
+            document.getElementById('signature-advisor-name').textContent = advisorName || 'No especificado';
+            document.getElementById('signature-vehicle-name').textContent = vehicleName || 'No especificado';
+            document.getElementById('signature-date').textContent = now.toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Poblar la lista de equipamiento del que se responsabiliza el asesor
+            const termsList = document.getElementById('signature-terms-list');
+            if (termsList) {
+                const relevant = getRelevantEquipment();
+                termsList.innerHTML = relevant.map(function (key) {
+                    const item = EQUIPMENT_ITEMS[key];
+                    const present = equipmentState[key];
+                    return '<div class="signature-term-item ' + (present ? 'present' : 'absent') + '">' +
+                        '<i class="fas ' + item.icon + ' term-item-icon"></i>' +
+                        '<span class="term-item-label">' + item.label + '</span>' +
+                        '<span class="term-item-status">' +
+                        (present
+                            ? '<i class="fas fa-check-circle"></i> Presente'
+                            : '<i class="fas fa-times-circle"></i> No incluido') +
+                        '</span>' +
+                        '</div>';
+                }).join('');
+            }
+
+            // Resetear el checkbox de aceptación de responsabilidad
+            const acceptCheck = document.getElementById('accept-responsibility-check');
+            if (acceptCheck) acceptCheck.checked = false;
+            const termsLabel = document.getElementById('signature-terms-check');
+            if (termsLabel) termsLabel.classList.remove('checked');
+            updateConfirmSignatureState();
+
+            // Mostrar el modal
+            document.getElementById('signature-modal').style.display = 'flex';
+
+            // Inicializar el canvas si no está inicializado
+            if (!signatureCanvas) {
+                setTimeout(initializeSignatureCanvas, 100);
+            }
+        }
+
+        // Función para guardar la inspección (modificada para mostrar modal de firma)
+        async function saveInspection() {
+            const odometer = document.getElementById('odometer').value;
+            if (!odometer) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Campo requerido',
+                    text: 'Por favor, ingrese el valor del odómetro',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#0097c6'
+                });
+                return;
+            }
+
+            // Verificar equipamiento no marcado según el tipo de vehículo
+            const relevantEquipment = getRelevantEquipment();
+            const equipamientoFaltante = relevantEquipment
+                .filter(function (key) { return !equipmentState[key]; })
+                .map(function (key) { return EQUIPMENT_ITEMS[key].label; });
+
+            if (equipamientoFaltante.length > 0) {
+                const equipResult = await Swal.fire({
+                    icon: 'warning',
+                    title: 'Equipamiento sin verificar',
+                    html: 'Los siguientes ítems <strong>no están marcados</strong> como presentes:' +
+                        '<br><br><strong style="color:#c94b8c;">' + equipamientoFaltante.join(', ') + '</strong>' +
+                        '<br><br>¿Desea guardar la inspección de todos modos?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, guardar así',
+                    cancelButtonText: 'Revisar',
+                    confirmButtonColor: '#e264a3',
+                    cancelButtonColor: '#6c757d'
+                });
+
+                if (!equipResult.isConfirmed) {
+                    return;
+                }
+            }
+
+            const table = $('#inspection-table').DataTable();
+
+            // Verificar si hay datos en la tabla
+            if (table.data().length === 0) {
+                // Preguntar si desea guardar sin observaciones
+                const result = await Swal.fire({
+                    icon: 'question',
+                    title: 'Inspección sin observaciones',
+                    text: '¿Desea guardar la inspección sin observaciones del vehículo?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, continuar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d'
+                });
+
+                if (!result.isConfirmed) {
+                    return;
+                }
+            }
+
+            // Abrir modal de firma en lugar de guardar directamente
+            openSignatureModal();
+        }
+
+        // Función para guardar la inspección con firma
+        async function saveInspectionWithSignature() {
+            const table = $('#inspection-table').DataTable();
+
+            // Obtener los datos del vehículo y asesor
+            const vehicleId = localStorage.getItem('selectedVehicleId');
+            const advisorId = localStorage.getItem('selectedAdvisorId');
+            const entryExit = document.getElementById('entry-exit').value;
+            const odometer = document.getElementById('odometer').value;
+
+            // Recopilar datos de la tabla
+            const inspectionDetails = [];
+            table.rows().every(function () {
+                const data = this.data();
+
+                // Usar la columna oculta (índice 4) que contiene los datos de la foto
+                let photoData = '';
+                if (data.length > 4 && data[4]) {
+                    // La columna 4 contiene directamente el data URL
+                    photoData = data[4];
+                } else {
+                    // Fallback: intentar extraer del HTML (método anterior)
+                    if (data[3] && data[3].includes('<img') && data[3].includes('src="')) {
+                        const imgSrc = data[3].match(/src="([^"]*)"/);
+                        photoData = imgSrc ? imgSrc[1] : '';
+                    } else {
+                        photoData = '';
+                    }
+                }
+
+                inspectionDetails.push({
+                    pieza: data[0],
+                    estado: data[1],
+                    observaciones: data[2],
+                    foto: photoData
+                });
+            });
+
+            // Recopilar el estado del equipamiento declarado según el tipo de vehículo
+            const equipamiento = {};
+            getRelevantEquipment().forEach(function (key) {
+                equipamiento[key] = equipmentState[key];
+            });
+
+            // Crear objeto con todos los datos de la inspección incluyendo la firma
+            const inspectionData = {
+                fecha: new Date().toISOString(),
+                vehiculo_id: vehicleId,
+                asesor_id: advisorId,
+                tipo_entrada: entryExit,
+                odometro: parseInt(odometer),
+                detalles: inspectionDetails,
+                firma_asesor: signatureData, // Agregar la firma digital
+                equipamiento: equipamiento, // Estado declarado de herramientas/botiquín/extintor
+                acepta_responsabilidad_equipamiento: true // Constancia de aceptación del asesor
+            };
+
+            console.log('Guardando inspección con firma:', inspectionData);
+
+            // Mostrar loading
+            Swal.fire({
+                title: 'Guardando inspección...',
+                text: 'Por favor espere',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                const response = await fetch('/api/inspecciones', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(inspectionData)
+                });
+
+                if (response.ok) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: '¡Éxito!',
+                        text: 'Inspección guardada exitosamente con firma digital',
+                        confirmButtonText: 'Continuar',
+                        confirmButtonColor: '#28a745'
+                    });
+                    window.location.href = 'historico.html';
+                } else {
+                    const errorData = await response.json();
+                    throw new Error('Error al guardar la inspección: ' + (errorData.error || 'Error desconocido'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al guardar',
+                    text: error.message,
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        }
+
+        // Variables globales para el modal
+        let currentPhotoData = null;
+        let mediaStream = null;
+
+        // Función para mostrar tooltip
+        function showTooltip(evt, text) {
+            let tooltip = document.getElementById('tooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'tooltip';
+                tooltip.style.position = 'absolute';
+                tooltip.style.backgroundColor = '#333';
+                tooltip.style.color = '#fff';
+                tooltip.style.padding = '5px 10px';
+                tooltip.style.borderRadius = '5px';
+                tooltip.style.pointerEvents = 'none';
+                tooltip.style.fontSize = '12px';
+                tooltip.style.zIndex = '1000';
+                document.body.appendChild(tooltip);
+            }
+
+            const displayText = text.replace(/_/g, ' ');
+            tooltip.textContent = displayText;
+            tooltip.style.left = `${evt.clientX + 15}px`;
+            tooltip.style.top = `${evt.clientY + 15}px`;
+            tooltip.style.display = 'block';
+        }
+
+        // Función para ocultar tooltip
+        function hideTooltip() {
+            const tooltip = document.getElementById('tooltip');
+            if (tooltip) {
+                tooltip.style.display = 'none';
+            }
+        }
+
+        // Función para abrir modal
+        function openModal(title) {
+            const modal = document.getElementById('modal-overlay');
+            const modalTitle = document.getElementById('modal-title');
+
+            if (!modal || !modalTitle) {
+                console.error('Modal elements not found');
+                return;
+            }
+
+            // Formatear el título para mejor visualización
+            const formattedTitle = typeof title === 'string' ? title.replace(/_/g, ' ') : title;
+            modalTitle.textContent = formattedTitle;
+
+            // Mostrar el modal
+            modal.style.display = 'flex';
+
+            // Resetear el formulario del modal
+            const conditionForm = document.getElementById('condition-form');
+            if (conditionForm) {
+                conditionForm.reset();
+            }
+
+            console.log('Modal abierto para:', formattedTitle);
+        }
+
+        // Función para cerrar modal
+        function closeModal() {
+            const modal = document.getElementById('modal-overlay');
+            if (!modal) {
+                console.error('Modal element not found');
+                return;
+            }
+
+            // Ocultar el modal
+            modal.style.display = 'none';
+
+            console.log('Modal cerrado');
+        }
+
+        // Función para actualizar todos los colores del SVG basado en la tabla
+        function updateAllSVGColors() {
+            // Primero restaurar todos los colores
+            const allSvgGroups = document.querySelectorAll('svg > a > g');
+            allSvgGroups.forEach(group => {
+                const pathElements = group.querySelectorAll('.st2, .st3');
+                pathElements.forEach(path => {
+                    path.style.fill = '#f8f9fa';
+                    path.style.stroke = '#5f5d5d';
+                    path.style.strokeWidth = '';
+                    path.classList.remove('damaged-piece');
+                    path.removeAttribute('data-damage-type');
+                });
+            });
+
+            // Luego aplicar colores basados en los datos de la tabla
+            const table = $('#inspection-table').DataTable();
+            const data = table.rows().data();
+
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
+                const pieceName = row[0]; // Columna de Pieza
+                const conditionText = row[1]; // Columna de Estado
+
+                // Solo se pintan las marcas del lado que se está viendo
+                const ladoPieza = ladoDePieza(pieceName);
+                if (ladoPieza && ladoPieza !== ladoActual) continue;
+
+                if (conditionText && conditionText !== 'Sin estado') {
+                    const conditions = conditionText.split(', ').map(c => c.trim());
+                    applyDamageColor(pieceName, conditions);
+                }
+            }
+        }
+
+        // Función para manejar la selección de opciones de daño
+        function toggleDamageOption(optionElement) {
+            console.log('toggleDamageOption llamada', optionElement);
+
+            const checkbox = optionElement.querySelector('input[type="checkbox"]');
+            console.log('Checkbox encontrado:', checkbox);
+
+            if (!checkbox) {
+                console.error('No se encontró el checkbox');
+                return;
+            }
+
+            const isCurrentlySelected = optionElement.classList.contains('selected');
+            console.log('Estado actual seleccionado:', isCurrentlySelected);
+
+            if (isCurrentlySelected) {
+                // Deseleccionar
+                optionElement.classList.remove('selected');
+                checkbox.checked = false;
+                console.log('Deseleccionado:', checkbox.value);
+            } else {
+                // Seleccionar
+                optionElement.classList.add('selected');
+                checkbox.checked = true;
+                console.log('Seleccionado:', checkbox.value);
+            }
+
+            // Agregar efecto visual de feedback
+            optionElement.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                optionElement.style.transform = '';
+            }, 150);
+
+            // Verificar el estado después del cambio
+            const allChecked = document.querySelectorAll('input[name="condition"]:checked');
+            console.log('Total checkboxes marcados después del cambio:', allChecked.length);
+            allChecked.forEach(cb => console.log('Checkbox marcado:', cb.value));
+        }
+
+        // Función para enviar la selección del modal
+        function submitSelection() {
+            console.log('submitSelection llamada');
+
+            // Obtener el título del modal (pieza) y etiquetarlo con el lado visible.
+            // Este es el nombre que termina guardándose en detalle_inspeccion.pieza.
+            const piece = nombreConLado(document.getElementById('modal-title').textContent);
+            console.log('Pieza:', piece);
+
+            // Obtener los valores seleccionados de los checkboxes
+            const checkedConditions = Array.from(
+                document.querySelectorAll('input[name="condition"]:checked')
+            ).map(checkbox => checkbox.value);
+            console.log('Condiciones seleccionadas:', checkedConditions);
+
+            // Combinar los valores de los checkboxes en un string
+            const conditionText = checkedConditions.join(', ') || 'Sin estado';
+            console.log('Texto de condición:', conditionText);
+
+            // Obtener las observaciones del textarea
+            const observations = document.querySelector('.observations')?.value || 'Sin observaciones';
+            console.log('Observaciones:', observations);
+
+            // Verificar si ya existe una entrada para esta pieza
+            const table = $('#inspection-table').DataTable();
+            const existingRowIndex = table.rows().indexes().filter(function (index) {
+                return table.row(index).data()[0] === piece;
+            });
+
+            if (existingRowIndex.length > 0) {
+                // Actualizar la fila existente
+                console.log('Actualizando fila existente');
+                const rowIndex = existingRowIndex[0];
+                table.row(rowIndex).data([
+                    piece,
+                    conditionText,
+                    observations,
+                    currentPhotoData || table.row(rowIndex).data()[3], // Mantener foto existente si no hay nueva
+                    currentPhotoData || table.row(rowIndex).data()[4]
+                ]).draw(false);
+            } else {
+                // Agregar una nueva fila al DataTable
+                console.log('Agregando nueva fila');
+                table.row.add([
+                    piece,                       // Columna de Pieza
+                    conditionText,               // Columna de Estado
+                    observations,                // Columna de Observaciones
+                    currentPhotoData || '',      // Columna de Foto (URL de datos de la imagen o cadena vacía)
+                    currentPhotoData || ''       // Columna oculta con datos de foto
+                ]).draw(false);
+            }
+
+            // Aplicar color al SVG si hay condiciones seleccionadas
+            if (checkedConditions.length > 0) {
+                console.log('Aplicando colores al SVG');
+                applyDamageColor(piece, checkedConditions);
+            } else {
+                console.log('Restaurando color original');
+                restorePieceColor(piece);
+            }
+
+            // Mostrar un mensaje de éxito y cerrar el modal
+            Swal.fire({
+                icon: 'success',
+                title: '¡Guardado!',
+                text: 'Selección guardada correctamente',
+                timer: 1500,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+            });
+            closeModal();
+
+            // Limpiar el formulario para la próxima selección
+            resetModalForm();
+        }
+
+        // Función para resetear el formulario del modal
+        function resetModalForm() {
+            console.log('Reseteando formulario del modal');
+
+            const conditionForm = document.getElementById('condition-form');
+            if (conditionForm) {
+                conditionForm.reset();
+            }
+
+            // Remover clases de selección visual
+            const damageOptions = document.querySelectorAll('.damage-option');
+            damageOptions.forEach(option => {
+                option.classList.remove('selected');
+            });
+
+            // Limpiar foto
+            currentPhotoData = null;
+            const photoPreview = document.getElementById('photo-preview');
+            if (photoPreview) {
+                photoPreview.style.display = 'none';
+                photoPreview.src = '';
+            }
+
+            // Resetear video de cámara si existe
+            const videoElement = document.getElementById('camera-stream');
+            if (videoElement) {
+                videoElement.style.display = 'none';
+            }
+        }
+
+
+
+        // Función para mostrar imagen en tamaño completo
+        function showFullImage(imageData) {
+            // Crear un modal para mostrar la imagen
+            const fullImageModal = document.createElement('div');
+            fullImageModal.style.position = 'fixed';
+            fullImageModal.style.top = '0';
+            fullImageModal.style.left = '0';
+            fullImageModal.style.width = '100%';
+            fullImageModal.style.height = '100%';
+            fullImageModal.style.backgroundColor = 'rgba(0,0,0,0.8)';
+            fullImageModal.style.display = 'flex';
+            fullImageModal.style.justifyContent = 'center';
+            fullImageModal.style.alignItems = 'center';
+            fullImageModal.style.zIndex = '20000';
+            fullImageModal.style.cursor = 'pointer';
+
+            // Crear la imagen
+            const img = document.createElement('img');
+            img.src = imageData;
+            img.style.maxWidth = '90%';
+            img.style.maxHeight = '90%';
+            img.style.borderRadius = '8px';
+            img.style.boxShadow = '0 4px 20px rgba(0,0,0,0.5)';
+
+            fullImageModal.appendChild(img);
+            document.body.appendChild(fullImageModal);
+
+            // Cerrar el modal al hacer clic
+            fullImageModal.addEventListener('click', () => {
+                document.body.removeChild(fullImageModal);
+            });
+        }
+
+        // Variables para manejo de cámaras
+        let availableCameras = [];
+        let currentCameraIndex = 0;
+
+        // Función para obtener las cámaras disponibles
+        async function getAvailableCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                availableCameras = devices.filter(device => device.kind === 'videoinput');
+                console.log('Cámaras disponibles:', availableCameras);
+                return availableCameras;
+            } catch (error) {
+                console.error('Error al obtener cámaras:', error);
+                return [];
+            }
+        }
+
+        // Función para abrir cámara
+        async function openCamera() {
+            // Verificar si el dispositivo soporta getUserMedia
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Cámara no disponible',
+                    text: 'Su navegador no soporta acceso a la cámara',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#dc3545'
+                });
+                return;
+            }
+
+            // Obtener cámaras disponibles
+            await getAvailableCameras();
+
+            // Si ya hay un stream activo, detenerlo
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+
+            // Crear elementos necesarios si no existen
+            let videoElement = document.getElementById('camera-stream');
+            let previewContainer = document.getElementById('preview-container');
+            let photoPreview = document.getElementById('photo-preview');
+            let cameraSelector = document.getElementById('camera-selector');
+            let switchCameraBtn = document.getElementById('switch-camera-btn');
+
+            // Resetear la vista previa
+            if (photoPreview) {
+                photoPreview.style.display = 'none';
+                photoPreview.src = '';
+            }
+
+            if (!videoElement) {
+                const cameraOptions = document.getElementById('camera-options');
+
+                // Crear selector de cámara si hay múltiples cámaras
+                if (availableCameras.length > 1 && !cameraSelector) {
+                    const selectorContainer = document.createElement('div');
+                    selectorContainer.style.marginBottom = '10px';
+
+                    cameraSelector = document.createElement('select');
+                    cameraSelector.id = 'camera-selector';
+                    cameraSelector.style.marginRight = '10px';
+                    cameraSelector.style.padding = '5px';
+
+                    availableCameras.forEach((camera, index) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = camera.label || `Cámara ${index + 1}`;
+                        cameraSelector.appendChild(option);
+                    });
+
+                    cameraSelector.addEventListener('change', (e) => {
+                        currentCameraIndex = parseInt(e.target.value);
+                        startCamera();
+                    });
+
+                    selectorContainer.appendChild(cameraSelector);
+                    cameraOptions.appendChild(selectorContainer);
+                }
+
+                // Crear botón para cambiar cámara (alternativa al selector)
+                if (availableCameras.length > 1 && !switchCameraBtn) {
+                    switchCameraBtn = document.createElement('button');
+                    switchCameraBtn.id = 'switch-camera-btn';
+                    switchCameraBtn.type = 'button';
+                    switchCameraBtn.textContent = '🔄 Cambiar Cámara';
+                    switchCameraBtn.style.marginRight = '10px';
+                    switchCameraBtn.style.padding = '8px 12px';
+                    switchCameraBtn.style.backgroundColor = '#6c757d';
+                    switchCameraBtn.style.color = 'white';
+                    switchCameraBtn.style.border = 'none';
+                    switchCameraBtn.style.borderRadius = '4px';
+                    switchCameraBtn.style.cursor = 'pointer';
+                    switchCameraBtn.onclick = switchCamera;
+                    cameraOptions.appendChild(switchCameraBtn);
+                }
+
+                // Crear stream de video
+                videoElement = document.createElement('video');
+                videoElement.id = 'camera-stream';
+                videoElement.width = 300;
+                videoElement.height = 225;
+                videoElement.autoplay = true;
+                videoElement.style.borderRadius = '8px';
+
+                // Crear contenedor para la vista previa
+                if (!previewContainer) {
+                    previewContainer = document.createElement('div');
+                    previewContainer.id = 'preview-container';
+                    previewContainer.style.marginTop = '10px';
+                    cameraOptions.appendChild(previewContainer);
+                }
+
+                previewContainer.appendChild(videoElement);
+
+                // Crear botón de captura si no existe
+                if (!document.getElementById('capture-photo-btn')) {
+                    const captureBtn = document.createElement('button');
+                    captureBtn.id = 'capture-photo-btn';
+                    captureBtn.type = 'button';
+                    captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capturar Foto';
+                    captureBtn.style.padding = '8px 16px';
+                    captureBtn.style.backgroundColor = '#28a745';
+                    captureBtn.style.color = 'white';
+                    captureBtn.style.border = 'none';
+                    captureBtn.style.borderRadius = '4px';
+                    captureBtn.style.cursor = 'pointer';
+                    captureBtn.style.marginTop = '10px';
+                    captureBtn.onclick = capturePhoto;
+                    cameraOptions.insertBefore(captureBtn, previewContainer);
+                }
+            } else {
+                videoElement.style.display = 'block';
+
+                // Actualizar botón de captura
+                const captureBtn = document.getElementById('capture-photo-btn');
+                if (captureBtn) {
+                    captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capturar Foto';
+                    captureBtn.onclick = capturePhoto;
+                }
+            }
+
+            // Iniciar la cámara
+            await startCamera();
+        }
+
+        // Función para iniciar la cámara con el dispositivo seleccionado
+        async function startCamera() {
+            const videoElement = document.getElementById('camera-stream');
+            if (!videoElement) return;
+
+            try {
+                // Si ya hay un stream activo, detenerlo
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                    mediaStream = null;
+                }
+
+                // Configurar constraints para la cámara
+                let constraints = { video: true };
+
+                if (availableCameras.length > 0 && availableCameras[currentCameraIndex]) {
+                    constraints = {
+                        video: {
+                            deviceId: { exact: availableCameras[currentCameraIndex].deviceId },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    };
+                }
+
+                // Acceder a la cámara
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = mediaStream;
+
+                console.log(`Cámara iniciada: ${availableCameras[currentCameraIndex]?.label || 'Cámara por defecto'}`);
+
+            } catch (error) {
+                console.error('Error al acceder a la cámara:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de cámara',
+                    text: 'No se pudo acceder a la cámara seleccionada. Verifique los permisos.',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        }
+
+        // Función para cambiar entre cámaras
+        function switchCamera() {
+            if (availableCameras.length <= 1) return;
+
+            currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+
+            // Actualizar selector si existe
+            const cameraSelector = document.getElementById('camera-selector');
+            if (cameraSelector) {
+                cameraSelector.value = currentCameraIndex;
+            }
+
+            // Cambiar a la nueva cámara
+            startCamera();
+
+            // Mostrar notificación
+            const cameraName = availableCameras[currentCameraIndex]?.label || `Cámara ${currentCameraIndex + 1}`;
+            Swal.fire({
+                icon: 'info',
+                title: 'Cámara cambiada',
+                text: `Usando: ${cameraName}`,
+                timer: 2000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+            });
+        }
+
+        // Función para capturar una foto
+        function capturePhoto() {
+            const videoElement = document.getElementById('camera-stream');
+            const photoPreview = document.getElementById('photo-preview');
+
+            if (!videoElement || !photoPreview) return;
+
+            // Crear un canvas para capturar la imagen
+            const canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const ctx = canvas.getContext('2d');
+
+            // Dibujar la imagen del video en el canvas
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+            // Convertir el canvas a una URL de datos
+            currentPhotoData = canvas.toDataURL('image/jpeg');
+
+            // Mostrar la vista previa
+            photoPreview.src = currentPhotoData;
+            photoPreview.style.display = 'block';
+
+            // Ocultar el video y mostrar la vista previa
+            videoElement.style.display = 'none';
+
+            // Cambiar el texto del botón de captura
+            const captureBtn = document.getElementById('capture-photo-btn');
+            if (captureBtn) {
+                captureBtn.textContent = 'Tomar otra foto';
+                captureBtn.onclick = openCamera;
+            }
+        }
+
+        // Event listener para cerrar modal al hacer clic fuera
+        document.addEventListener('click', (event) => {
+            const modal = document.getElementById('modal-overlay');
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Agregar el event listener para el botón de guardar
+        document.addEventListener('DOMContentLoaded', function () {
+            const saveButton = document.getElementById('save-inspection-btn');
+            if (saveButton) {
+                saveButton.addEventListener('click', saveInspection);
+            }
+        });
+    </script>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-car-side"></i> Inspecciones Vehiculares
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="fas fa-home"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="historico.html">
+                            <i class="fas fa-history"></i> Histórico
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="admin.html">
+                            <i class="fas fa-cogs"></i> Administración
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="container">
+            <div id="inspection-container">
+                <!-- Header Compacto -->
+                <div id="header" class="inspection-header">
+                    <!-- Header compacto -->
+                    <div id="header-compact" class="header-compact">
+                        <div class="header-summary">
+                            <div class="summary-item">
+                                <i class="fas fa-car"></i>
+                                <span class="summary-value" id="compact-vehicle-info">Cargando...</span>
+                            </div>
+                            <div class="summary-item">
+                                <i class="fas fa-user-tie"></i>
+                                <span class="summary-value" id="compact-advisor-info">Cargando...</span>
+                            </div>
+                            <div class="summary-item">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <span class="summary-value" id="compact-odometer-info">Cargando...</span>
+                            </div>
+                            <div class="summary-item">
+                                <i class="fas fa-exchange-alt"></i>
+                                <span class="summary-value" id="compact-entry-type">Cargando...</span>
+                            </div>
+                            <div class="summary-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span class="summary-value" id="compact-date-info">Cargando...</span>
+                            </div>
+                        </div>
+                        <div id="compact-checks" class="header-checks"></div>
+                        <button id="toggle-header" class="toggle-btn" title="Expandir detalles">
+                            <span>Detalles</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+
+                    <!-- Header expandido (oculto por defecto) -->
+                    <div id="header-expanded" class="header-expanded" style="display: none;">
+                        <div class="row justify-content-between">
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="entry-exit">Entrada/Salida:</label>
+                                    <select id="entry-exit" class="form-select" disabled>
+                                        <option value="entrada">Entrada</option>
+                                        <option value="salida">Salida</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="vehicle-info">Detalles del Vehículo:</label>
+                                    <div id="vehicle-info" class="form-control" style="background-color: #f8f9fa;">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="advisor-info">Asesor:</label>
+                                    <div id="advisor-info" class="form-control" style="background-color: #f8f9fa;">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="date-time">Fecha/Hora:</label>
+                                    <input type="text" id="date-time" class="form-control" readonly
+                                        style="background-color: #f8f9fa;">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="odometer">Odómetro:</label>
+                                    <input type="number" id="odometer" class="form-control" readonly
+                                        style="background-color: #f8f9fa;">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>&nbsp;</label>
+                                    <button id="edit-header-data" class="btn btn-sm btn-outline-primary w-100">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Validación de equipamiento (según tipo de vehículo) -->
+                        <div id="expanded-checks" class="equipment-check-section">
+                            <div class="equipment-check-title">
+                                <i class="fas fa-clipboard-check"></i> Verificación de equipamiento
+                            </div>
+                            <div class="equipment-check-grid">
+                                <label class="equipment-check-item" data-check="herramientas">
+                                    <input type="checkbox" id="check-herramientas">
+                                    <i class="fas fa-toolbox item-icon"></i>
+                                    <span>Herramientas</span>
+                                </label>
+                                <label class="equipment-check-item" data-check="botiquin">
+                                    <input type="checkbox" id="check-botiquin">
+                                    <i class="fas fa-briefcase-medical item-icon"></i>
+                                    <span>Botiquín</span>
+                                </label>
+                                <label class="equipment-check-item" data-check="extintor">
+                                    <input type="checkbox" id="check-extintor">
+                                    <i class="fas fa-fire-extinguisher item-icon"></i>
+                                    <span>Extintor</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content - Layout horizontal -->
+                <div class="row"
+                    style="display: flex; margin-top: 20px; width: 99%; margin-left: auto; margin-right: auto;">
+                    <!-- Diagrama del vehículo -->
+                    <div class="diagram-box" id="vehicle-diagram">
+                        <!---------------------------------------------------------------->
+                        <!--############################################################-->
+                        <!-- El SVG del vehículo se cargará dinámicamente según el tipo -->
+                        <!--############################################################-->
+                        <!---------------------------------------------------------------->
+                        <div id="loading-diagram">Cargando diagrama...</div>
+                    </div>
+
+                    <!-- DataTable -->
+                    <div id="datatable-box">
+                        <h3>Inspección</h3>
+                        <table id="inspection-table" class="display" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Pieza</th>
+                                    <th>Estado</th>
+                                    <th>Observaciones</th>
+                                    <th>Foto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Filas de datos generadas dinámicamente -->
+                            </tbody>
+                        </table>
+
+                        <!-- Botón para guardar la inspección -->
+                        <div class="text-center mt-4">
+                            <button id="save-inspection-btn" class="btn btn-success">Guardar Inspección</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal de selección optimizado para tablets -->
+            <div id="modal-overlay" class="modal-overlay">
+                <div class="modal2">
+                    <h3 id="modal-title">Título de la pieza</h3>
+                    <button class="close-btn" onclick="closeModal()">&times;</button>
+
+                    <form id="condition-form">
+                        <!-- Opciones de estado en grid horizontal -->
+                        <div class="modal-section-label"><i class="fas fa-clipboard-list"></i> Estado de la pieza</div>
+                        <div class="damage-options-container">
+                            <div class="damage-option good-state" onclick="toggleDamageOption(this)">
+                                <input type="checkbox" name="condition" value="Buen estado">
+                                <div class="damage-text">Buen estado</div>
+                            </div>
+
+                            <div class="damage-option scratched" onclick="toggleDamageOption(this)">
+                                <input type="checkbox" name="condition" value="Rayado">
+                                <div class="damage-text">Rayado</div>
+                            </div>
+
+                            <div class="damage-option chipped" onclick="toggleDamageOption(this)">
+                                <input type="checkbox" name="condition" value="Desportillado">
+                                <div class="damage-text">Desportillado</div>
+                            </div>
+
+                            <div class="damage-option dented" onclick="toggleDamageOption(this)">
+                                <input type="checkbox" name="condition" value="Abollado">
+                                <div class="damage-text">Abollado</div>
+                            </div>
+
+                            <div class="damage-option faded" onclick="toggleDamageOption(this)">
+                                <input type="checkbox" name="condition" value="Desgastado">
+                                <div class="damage-text">Desgastado</div>
+                            </div>
+
+                            <div class="damage-option broken" onclick="toggleDamageOption(this)">
+                                <input type="checkbox" name="condition" value="Roto">
+                                <div class="damage-text">Roto</div>
+                            </div>
+
+                            <div class="damage-option other" onclick="toggleDamageOption(this)">
+                                <input type="checkbox" name="condition" value="Otro">
+                                <div class="damage-text">Otro</div>
+                            </div>
+                        </div>
+
+                        <!-- Observaciones -->
+                        <div class="modal-section-label"><i class="fas fa-pen"></i> Observaciones</div>
+                        <textarea class="observations"
+                            placeholder="Escriba observaciones adicionales aquí..."></textarea>
+
+                        <!-- Opciones de cámara -->
+                        <div class="modal-section-label"><i class="fas fa-camera"></i> Evidencia fotográfica</div>
+                        <div id="camera-options">
+                            <button type="button" id="capture-btn" onclick="openCamera()">
+                                <i class="fas fa-camera"></i> Tomar Foto
+                            </button>
+                            <div id="preview-container">
+                                <img id="photo-preview" alt="Vista previa de la foto" style="display: none;">
+                            </div>
+                        </div>
+
+                        <!-- Botón de guardar -->
+                        <button type="button" class="btn" onclick="submitSelection()">
+                            <i class="fas fa-save"></i> Guardar Selección
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Script para arreglar el modal -->
+            <script>
+                // Función para manejar la selección de opciones de daño
+                function toggleDamageOption(optionElement) {
+                    console.log('toggleDamageOption llamada', optionElement);
+
+                    const checkbox = optionElement.querySelector('input[type="checkbox"]');
+                    console.log('Checkbox encontrado:', checkbox);
+
+                    if (!checkbox) {
+                        console.error('No se encontró el checkbox');
+                        return;
+                    }
+
+                    const isCurrentlySelected = optionElement.classList.contains('selected');
+                    console.log('Estado actual seleccionado:', isCurrentlySelected);
+
+                    if (isCurrentlySelected) {
+                        // Deseleccionar
+                        optionElement.classList.remove('selected');
+                        checkbox.checked = false;
+                        console.log('Deseleccionado:', checkbox.value);
+                    } else {
+                        // Seleccionar
+                        optionElement.classList.add('selected');
+                        checkbox.checked = true;
+                        console.log('Seleccionado:', checkbox.value);
+                    }
+
+                    // Agregar efecto visual de feedback
+                    optionElement.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        optionElement.style.transform = '';
+                    }, 150);
+
+                    // Verificar el estado después del cambio
+                    const allChecked = document.querySelectorAll('input[name="condition"]:checked');
+                    console.log('Total checkboxes marcados después del cambio:', allChecked.length);
+                    allChecked.forEach(cb => console.log('Checkbox marcado:', cb.value));
+                }
+
+
+
+                // Función para resetear el formulario del modal
+                function resetModalForm() {
+                    console.log('Reseteando formulario del modal');
+
+                    const conditionForm = document.getElementById('condition-form');
+                    if (conditionForm) {
+                        conditionForm.reset();
+                    }
+
+                    // Remover clases de selección visual
+                    const damageOptions = document.querySelectorAll('.damage-option');
+                    damageOptions.forEach(option => {
+                        option.classList.remove('selected');
+                    });
+
+                    // Limpiar foto
+                    if (typeof currentPhotoData !== 'undefined') {
+                        currentPhotoData = null;
+                    }
+                    const photoPreview = document.getElementById('photo-preview');
+                    if (photoPreview) {
+                        photoPreview.style.display = 'none';
+                        photoPreview.src = '';
+                    }
+
+                    // Resetear video de cámara si existe
+                    const videoElement = document.getElementById('camera-stream');
+                    if (videoElement) {
+                        videoElement.style.display = 'none';
+                    }
+                }
+
+                console.log('Modal fix script cargado directamente en HTML');
+            </script>
+
+            <!-- Modal de Firma Digital -->
+            <div id="signature-modal">
+                <div class="signature-modal-content">
+                    <div class="signature-header">
+                        <h3><i class="fas fa-signature"></i> Firma Digital del Asesor</h3>
+                        <p>Por favor, firme para confirmar la inspección vehicular</p>
+                    </div>
+
+                    <div class="signature-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Asesor:</strong> <span id="signature-advisor-name">Cargando...</span><br>
+                        <strong>Vehículo:</strong> <span id="signature-vehicle-name">Cargando...</span><br>
+                        <strong>Fecha:</strong> <span id="signature-date">Cargando...</span>
+                    </div>
+
+                    <div class="signature-canvas-container">
+                        <canvas id="signature-canvas"></canvas>
+                        <div class="signature-placeholder" id="signature-placeholder">
+                            Firme aquí con su dedo o stylus
+                        </div>
+                    </div>
+
+                    <!-- Aceptación de responsabilidad sobre el equipamiento -->
+                    <div class="signature-terms">
+                        <div class="signature-terms-title">
+                            <i class="fas fa-clipboard-check"></i> Responsabilidad sobre el equipamiento
+                        </div>
+                        <div class="signature-terms-list" id="signature-terms-list">
+                            <!-- Generado dinámicamente según el tipo de vehículo -->
+                        </div>
+                        <label class="signature-terms-check" id="signature-terms-check">
+                            <input type="checkbox" id="accept-responsibility-check" onchange="onAcceptanceChange()">
+                            <span>Declaro que he verificado personalmente el equipamiento indicado y me
+                                comprometo y hago responsable de que los implementos marcados como presentes se
+                                encuentran a bordo del vehículo al momento de esta inspección.</span>
+                        </label>
+                    </div>
+
+                    <div class="signature-controls">
+                        <button type="button" class="signature-btn signature-btn-clear" onclick="clearSignature()">
+                            <i class="fas fa-eraser"></i> Limpiar
+                        </button>
+                        <button type="button" class="signature-btn signature-btn-cancel" onclick="cancelSignature()">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                        <button type="button" class="signature-btn signature-btn-confirm" id="confirm-signature-btn"
+                            onclick="confirmSignature()" disabled>
+                            <i class="fas fa-check"></i> Confirmar y Guardar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Verificar la disponibilidad de los datos necesarios antes de cargar la página
+            (function checkRequiredData() {
+                // Obtener valores de localStorage con los nombres correctos
+                const vehiculoId = localStorage.getItem('selectedVehicleId');
+                const vehiculoNombre = localStorage.getItem('selectedVehicleName');
+                const asesorId = localStorage.getItem('selectedAdvisorId');
+                const asesorNombre = localStorage.getItem('selectedAdvisorName');
+                const tipoVehiculo = localStorage.getItem('vehicleType');
+
+                console.log('Datos en localStorage al cargar inspection.html:');
+                console.log('- selectedVehicleId:', vehiculoId);
+                console.log('- selectedVehicleName:', vehiculoNombre);
+                console.log('- selectedAdvisorId:', asesorId);
+                console.log('- selectedAdvisorName:', asesorNombre);
+                console.log('- vehicleType:', tipoVehiculo);
+
+                // Verificar si hay datos faltantes
+                if (!vehiculoId || vehiculoId === 'undefined' || vehiculoId === 'null' ||
+                    !vehiculoNombre || vehiculoNombre === 'undefined' || vehiculoNombre === 'null' ||
+                    !asesorId || asesorId === 'undefined' || asesorId === 'null' ||
+                    !asesorNombre || asesorNombre === 'undefined' || asesorNombre === 'null' ||
+                    !tipoVehiculo || tipoVehiculo === 'undefined' || tipoVehiculo === 'null') {
+
+                    console.error('Datos faltantes en localStorage. Redirigiendo a la página principal.');
+                    alert('Datos incompletos. Será redirigido a la página principal para seleccionar vehículo y asesor.');
+
+                    // Limpiar localStorage para evitar problemas futuros
+                    localStorage.removeItem('selectedVehicleId');
+                    localStorage.removeItem('selectedVehicleName');
+                    localStorage.removeItem('selectedAdvisorId');
+                    localStorage.removeItem('selectedAdvisorName');
+                    localStorage.removeItem('vehicleType');
+
+                    // Redirigir a la página principal
+                    window.location.href = 'index.html';
+                }
+            })();
+        </script>
+
+        <script>
+            // Función para mostrar tooltip
+            function showTooltip(evt, text) {
+                const tooltip = document.getElementById('tooltip');
+                if (!tooltip) {
+                    // Crear tooltip si no existe
+                    const newTooltip = document.createElement('div');
+                    newTooltip.id = 'tooltip';
+                    newTooltip.style.position = 'absolute';
+                    newTooltip.style.backgroundColor = '#333';
+                    newTooltip.style.color = '#fff';
+                    newTooltip.style.padding = '5px 10px';
+                    newTooltip.style.borderRadius = '5px';
+                    newTooltip.style.pointerEvents = 'none';
+                    newTooltip.style.fontSize = '12px';
+                    newTooltip.style.zIndex = '1000';
+                    document.body.appendChild(newTooltip);
+                }
+
+                const activeTooltip = document.getElementById('tooltip');
+                if (activeTooltip) {
+                    activeTooltip.textContent = text;
+                    activeTooltip.style.left = `${evt.clientX + 15}px`;
+                    activeTooltip.style.top = `${evt.clientY + 15}px`;
+                    activeTooltip.style.display = 'block';
+                    activeTooltip.style.visibility = 'visible';
+                }
+            }
+
+            // Función para ocultar tooltip
+            function hideTooltip() {
+                const tooltip = document.getElementById('tooltip');
+                if (tooltip) {
+                    tooltip.style.display = 'none';
+                    tooltip.style.visibility = 'hidden';
+                }
+            }
+
+            // Función para abrir modal
+            function openModal(title) {
+                const modal = document.getElementById('modal-overlay');
+                const modalTitle = document.getElementById('modal-title');
+
+                if (!modal || !modalTitle) {
+                    console.error('Modal elements not found');
+                    return;
+                }
+
+                // Formatear el título para mejor visualización
+                const formattedTitle = typeof title === 'string' ? title.replace(/_/g, ' ') : title;
+                modalTitle.textContent = formattedTitle;
+
+                // Mostrar el modal
+                modal.style.display = 'flex';
+
+                // Resetear el formulario del modal
+                const conditionForm = document.getElementById('condition-form');
+                if (conditionForm) {
+                    conditionForm.reset();
+                }
+
+                console.log('Modal abierto para:', formattedTitle);
+            }
+
+            // Función para cerrar modal
+            function closeModal() {
+                const modal = document.getElementById('modal-overlay');
+                if (!modal) {
+                    console.error('Modal element not found');
+                    return;
+                }
+
+                // Ocultar el modal
+                modal.style.display = 'none';
+
+                console.log('Modal cerrado');
+            }
+
+
+
+            // Variables para la cámara
+            let mediaStream = null;
+            let currentPhotoData = null;
+
+            // Variables para manejo de cámaras (duplicado para consistencia)
+            let availableCameras2 = [];
+            let currentCameraIndex2 = 0;
+
+            // Función para obtener las cámaras disponibles (duplicado)
+            async function getAvailableCameras2() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    availableCameras2 = devices.filter(device => device.kind === 'videoinput');
+                    console.log('Cámaras disponibles (segunda función):', availableCameras2);
+                    return availableCameras2;
+                } catch (error) {
+                    console.error('Error al obtener cámaras:', error);
+                    return [];
+                }
+            }
+
+            // Función para abrir cámara (versión actualizada)
+            async function openCamera() {
+                // Verificar si el dispositivo soporta getUserMedia
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert('Su navegador no soporta acceso a la cámara');
+                    return;
+                }
+
+                // Obtener cámaras disponibles
+                await getAvailableCameras2();
+
+                // Si ya hay un stream activo, detenerlo
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                    mediaStream = null;
+                }
+
+                // Crear elementos necesarios si no existen
+                let videoElement = document.getElementById('camera-stream');
+                let previewContainer = document.getElementById('preview-container');
+                let photoPreview = document.getElementById('photo-preview');
+                let cameraSelector = document.getElementById('camera-selector-2');
+                let switchCameraBtn = document.getElementById('switch-camera-btn-2');
+
+                // Resetear la vista previa
+                if (photoPreview) {
+                    photoPreview.style.display = 'none';
+                    photoPreview.src = '';
+                }
+
+                if (!videoElement) {
+                    const cameraOptions = document.getElementById('camera-options');
+
+                    // Crear selector de cámara si hay múltiples cámaras
+                    if (availableCameras2.length > 1 && !cameraSelector) {
+                        const selectorContainer = document.createElement('div');
+                        selectorContainer.style.marginBottom = '10px';
+                        selectorContainer.style.textAlign = 'center';
+
+                        const selectorLabel = document.createElement('label');
+                        selectorLabel.textContent = 'Seleccionar cámara: ';
+                        selectorLabel.style.marginRight = '10px';
+                        selectorLabel.style.fontWeight = 'bold';
+
+                        cameraSelector = document.createElement('select');
+                        cameraSelector.id = 'camera-selector-2';
+                        cameraSelector.style.marginRight = '10px';
+                        cameraSelector.style.padding = '5px 10px';
+                        cameraSelector.style.borderRadius = '4px';
+                        cameraSelector.style.border = '1px solid #ccc';
+
+                        availableCameras2.forEach((camera, index) => {
+                            const option = document.createElement('option');
+                            option.value = index;
+                            // Intentar identificar cámara frontal/posterior
+                            let cameraName = camera.label || `Cámara ${index + 1}`;
+                            if (cameraName.toLowerCase().includes('back') || cameraName.toLowerCase().includes('rear')) {
+                                cameraName += ' (Posterior)';
+                            } else if (cameraName.toLowerCase().includes('front') || cameraName.toLowerCase().includes('user')) {
+                                cameraName += ' (Frontal)';
+                            }
+                            option.textContent = cameraName;
+                            cameraSelector.appendChild(option);
+                        });
+
+                        cameraSelector.addEventListener('change', (e) => {
+                            currentCameraIndex2 = parseInt(e.target.value);
+                            startCamera2();
+                        });
+
+                        selectorContainer.appendChild(selectorLabel);
+                        selectorContainer.appendChild(cameraSelector);
+                        cameraOptions.appendChild(selectorContainer);
+                    }
+
+                    // Crear botón para cambiar cámara (alternativa al selector)
+                    if (availableCameras2.length > 1 && !switchCameraBtn) {
+                        switchCameraBtn = document.createElement('button');
+                        switchCameraBtn.id = 'switch-camera-btn-2';
+                        switchCameraBtn.type = 'button';
+                        switchCameraBtn.textContent = '🔄 Cambiar Cámara';
+                        switchCameraBtn.style.marginRight = '10px';
+                        switchCameraBtn.style.marginBottom = '10px';
+                        switchCameraBtn.style.padding = '8px 12px';
+                        switchCameraBtn.style.backgroundColor = '#6c757d';
+                        switchCameraBtn.style.color = 'white';
+                        switchCameraBtn.style.border = 'none';
+                        switchCameraBtn.style.borderRadius = '4px';
+                        switchCameraBtn.style.cursor = 'pointer';
+                        switchCameraBtn.onclick = switchCamera2;
+                        cameraOptions.appendChild(switchCameraBtn);
+                    }
+
+                    // Crear stream de video
+                    videoElement = document.createElement('video');
+                    videoElement.id = 'camera-stream';
+                    videoElement.width = 300;
+                    videoElement.height = 225;
+                    videoElement.autoplay = true;
+                    videoElement.style.borderRadius = '8px';
+                    videoElement.style.border = '2px solid #ddd';
+
+                    // Crear contenedor para la vista previa
+                    if (!previewContainer) {
+                        previewContainer = document.createElement('div');
+                        previewContainer.id = 'preview-container';
+                        previewContainer.style.marginTop = '10px';
+                        previewContainer.style.textAlign = 'center';
+                        cameraOptions.appendChild(previewContainer);
+                    }
+
+                    previewContainer.appendChild(videoElement);
+
+                    // Crear botón de captura si no existe
+                    if (!document.getElementById('capture-btn')) {
+                        const captureBtn = document.createElement('button');
+                        captureBtn.id = 'capture-btn';
+                        captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capturar Foto';
+                        captureBtn.style.padding = '8px 16px';
+                        captureBtn.style.backgroundColor = '#28a745';
+                        captureBtn.style.color = 'white';
+                        captureBtn.style.border = 'none';
+                        captureBtn.style.borderRadius = '4px';
+                        captureBtn.style.cursor = 'pointer';
+                        captureBtn.style.marginTop = '10px';
+                        captureBtn.addEventListener('click', capturePhoto);
+                        cameraOptions.insertBefore(captureBtn, previewContainer);
+                    }
+                } else {
+                    videoElement.style.display = 'block';
+
+                    // Actualizar botón de captura
+                    const captureBtn = document.getElementById('capture-btn');
+                    if (captureBtn) {
+                        captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capturar Foto';
+                        captureBtn.onclick = capturePhoto;
+                    }
+                }
+
+                // Iniciar la cámara
+                await startCamera2();
+            }
+
+            // Función para iniciar la cámara con el dispositivo seleccionado (duplicado)
+            async function startCamera2() {
+                const videoElement = document.getElementById('camera-stream');
+                if (!videoElement) return;
+
+                try {
+                    // Si ya hay un stream activo, detenerlo
+                    if (mediaStream) {
+                        mediaStream.getTracks().forEach(track => track.stop());
+                        mediaStream = null;
+                    }
+
+                    // Configurar constraints para la cámara
+                    let constraints = {
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    };
+
+                    if (availableCameras2.length > 0 && availableCameras2[currentCameraIndex2]) {
+                        constraints.video.deviceId = { exact: availableCameras2[currentCameraIndex2].deviceId };
+                    }
+
+                    // Acceder a la cámara
+                    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    videoElement.srcObject = mediaStream;
+
+                    const cameraName = availableCameras2[currentCameraIndex2]?.label || 'Cámara por defecto';
+                    console.log(`Cámara iniciada: ${cameraName}`);
+
+                } catch (error) {
+                    console.error('Error al acceder a la cámara:', error);
+                    alert('No se pudo acceder a la cámara seleccionada. Verifique los permisos.');
+                }
+            }
+
+            // Función para cambiar entre cámaras (duplicado)
+            function switchCamera2() {
+                if (availableCameras2.length <= 1) return;
+
+                currentCameraIndex2 = (currentCameraIndex2 + 1) % availableCameras2.length;
+
+                // Actualizar selector si existe
+                const cameraSelector = document.getElementById('camera-selector-2');
+                if (cameraSelector) {
+                    cameraSelector.value = currentCameraIndex2;
+                }
+
+                // Cambiar a la nueva cámara
+                startCamera2();
+
+                // Mostrar notificación
+                const cameraName = availableCameras2[currentCameraIndex2]?.label || `Cámara ${currentCameraIndex2 + 1}`;
+                alert(`Cámara cambiada a: ${cameraName}`);
+            }
+
+            // Función para capturar foto
+            function capturePhoto() {
+                const videoElement = document.getElementById('camera-stream');
+                const photoPreview = document.getElementById('photo-preview');
+
+                if (!videoElement || !photoPreview) return;
+
+                // Crear un canvas para capturar la imagen
+                const canvas = document.createElement('canvas');
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                const ctx = canvas.getContext('2d');
+
+                // Dibujar la imagen del video en el canvas
+                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+                // Convertir el canvas a una URL de datos
+                currentPhotoData = canvas.toDataURL('image/jpeg');
+
+                // Mostrar la vista previa
+                photoPreview.src = currentPhotoData;
+                photoPreview.style.display = 'block';
+
+                // Ocultar el video y mostrar la vista previa
+                videoElement.style.display = 'none';
+
+                // Cambiar el texto del botón de captura
+                const captureBtn = document.getElementById('capture-btn');
+                if (captureBtn) {
+                    captureBtn.textContent = 'Tomar otra foto';
+                    captureBtn.onclick = openCamera;
+                }
+            }
+        </script>
+</body>
+
+</html>

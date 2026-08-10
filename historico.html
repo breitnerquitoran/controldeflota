@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico de Inspecciones</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="console.css">
+    <style>
+        .card {
+            margin-bottom: 20px;
+        }
+        .photo-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .photo-thumbnail {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .photo-thumbnail:hover {
+            transform: scale(1.05);
+        }
+        .modal-body img {
+            max-width: 100%;
+            max-height: 80vh;
+        }
+        .badge-count {
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
+        #noInspections {
+            text-align: center;
+            padding: 50px;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            margin-top: 20px;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+        }
+        .card-body {
+            position: relative;
+        }
+        .fecha-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: var(--brand-primary-050);
+            color: var(--brand-primary-800);
+            padding: 0.25rem 0.55rem;
+            border-radius: 5px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+        }
+
+        /* Celdas de la tabla principal */
+        .cell-muted {
+            color: var(--muted-foreground);
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.75rem;
+        }
+
+        .tipo-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 5px;
+        }
+
+        .tipo-pill i {
+            font-size: 0.625rem;
+        }
+
+        /* Entrada y salida se distinguen por color, no solo por icono */
+        .tipo-entrada {
+            background-color: #e6f6ed;
+            color: #157a43;
+        }
+
+        .tipo-salida {
+            background-color: var(--brand-accent-050);
+            color: var(--brand-accent-700);
+        }
+
+        /* Movimientos que no pasan por la inspección */
+        .tipo-entrada_mantenimiento,
+        .tipo-salida_mantenimiento {
+            background-color: #fdf1e0;
+            color: #9a5d00;
+        }
+
+        .tipo-entrada_visita,
+        .tipo-salida_visita {
+            background-color: var(--brand-primary-050);
+            color: var(--brand-primary-800);
+        }
+
+        /* Encabezado de la página */
+        .page-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .page-heading .record-count {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--muted-foreground);
+        }
+    </style>
+</head>
+<body class="data-console">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-car-side"></i> Inspecciones Vehiculares
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="fas fa-home"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="historico.html">
+                            <i class="fas fa-history"></i> Histórico
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="odometros.html">
+                            <i class="fas fa-tachometer-alt"></i> Odómetros
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="maestranza.html">
+                            <i class="fas fa-screwdriver-wrench"></i> Maestranza
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="admin.html">
+                            <i class="fas fa-cogs"></i> Administración
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <div class="page-heading">
+                <div>
+                    <h1 class="page-title">Histórico de Inspecciones</h1>
+                    <p class="page-subtitle">Registro de todas las inspecciones guardadas</p>
+                </div>
+                <span class="record-count" id="totalRegistros"></span>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2">Cargando inspecciones...</p>
+        </div>
+
+        <div id="noInspections" style="display: none;">
+            <i class="fas fa-clipboard-list fa-3x mb-3 text-muted"></i>
+            <h3>No hay inspecciones registradas</h3>
+            <p>Todavía no se han registrado inspecciones en el sistema.</p>
+            <a href="index.html" class="btn btn-primary mt-3">
+                <i class="fas fa-plus-circle"></i> Crear Primera Inspección
+            </a>
+        </div>
+
+        <div class="filters" id="filtersContainer" style="display: none;">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="filtroVehiculo" class="form-label">Filtrar por Vehículo</label>
+                    <select id="filtroVehiculo" class="form-select">
+                        <option value="">Todos los vehículos</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="filtroAsesor" class="form-label">Filtrar por Asesor</label>
+                    <select id="filtroAsesor" class="form-select">
+                        <option value="">Todos los asesores</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="filtroTipo" class="form-label">Tipo de Entrada/Salida</label>
+                    <select id="filtroTipo" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="entrada">Entrada</option>
+                        <option value="salida">Salida</option>
+                        <option value="entrada_mantenimiento">Ingreso por mantenimiento</option>
+                        <option value="salida_mantenimiento">Salida por mantenimiento</option>
+                        <option value="entrada_visita">Ingreso de visita</option>
+                        <option value="salida_visita">Salida de visita</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="tableContainer" style="display: none;">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table"></i> Inspecciones Registradas
+                    </h5>
+                    <div class="d-flex gap-2" id="selectionActions" style="display: none;">
+                        <button class="btn btn-sm btn-outline-primary" onclick="seleccionarTodos()">
+                            <i class="fas fa-check-square"></i> Seleccionar Todo
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="deseleccionarTodos()">
+                            <i class="fas fa-square"></i> Deseleccionar Todo
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="confirmarBorrarSeleccionados()" id="btnBorrarSeleccionados" disabled>
+                            <i class="fas fa-trash"></i> Borrar Seleccionados (<span id="contadorSeleccionados">0</span>)
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table id="inspeccionesTable" class="table table-striped table-hover" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                                </th>
+                                <th></th>
+                                <th>Fecha</th>
+                                <th>Vehículo</th>
+                                <th>Marca/Modelo</th>
+                                <th>Asesor</th>
+                                <th>Tipo</th>
+                                <th>Piezas</th>
+                                <th>Fotos</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para visualizar fotos -->
+    <div class="modal fade" id="photoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="photoModalLabel">Vista detallada</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div id="photoContainer">
+                        <img id="fullSizePhoto" src="" alt="Foto de la pieza">
+                    </div>
+                    <div class="mt-3">
+                        <h5 id="piezaName">Nombre de la pieza</h5>
+                        <p><strong>Estado:</strong> <span id="piezaState"></span></p>
+                        <p><strong>Observaciones:</strong> <span id="piezaObservaciones"></span></p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de detalles de inspección -->
+    <div class="modal fade" id="inspectionDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailsModalLabel">Detalles de la Inspección</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Información del Vehículo</h6>
+                            <ul class="list-group">
+                                <li class="list-group-item"><strong>Placa:</strong> <span id="detalleVehiculoPlaca"></span></li>
+                                <li class="list-group-item"><strong>Marca/Modelo:</strong> <span id="detalleVehiculoModelo"></span></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Información de la Inspección</h6>
+                            <ul class="list-group">
+                                <li class="list-group-item"><strong>Fecha:</strong> <span id="detalleFecha"></span></li>
+                                <li class="list-group-item"><strong>Asesor:</strong> <span id="detalleAsesor"></span></li>
+                                <li class="list-group-item"><strong>Tipo:</strong> <span id="detalleTipo"></span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <h6>Elementos Inspeccionados</h6>
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="detallesTable">
+                            <thead>
+                                <tr>
+                                    <th>Pieza</th>
+                                    <th>Estado</th>
+                                    <th>Observaciones</th>
+                                    <th>Foto</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detallesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación para borrar -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="fas fa-trash-alt fa-3x text-danger mb-3"></i>
+                        <h5>¿Está seguro de que desea eliminar los registros seleccionados?</h5>
+                        <p class="text-muted mb-3">
+                            Se eliminarán <strong id="registrosAEliminar">0</strong> registro(s) de inspección.
+                            <br>Esta acción no se puede deshacer.
+                        </p>
+                        <div id="listadoRegistros" class="alert alert-light text-start">
+                            <!-- Lista de registros a eliminar -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="borrarRegistrosSeleccionados()" id="btnConfirmarBorrado">
+                        <i class="fas fa-trash"></i> Eliminar Registros
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de edición de inspección -->
+    <div class="modal fade" id="editInspectionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit"></i> Editar Inspección
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="editInspectionForm">
+                        <!-- Información general de la inspección -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="editOdometro" class="form-label">Odómetro</label>
+                                <input type="number" class="form-control" id="editOdometro" min="0" step="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editTipoEntrada" class="form-label">Tipo de Entrada/Salida</label>
+                                <select class="form-select" id="editTipoEntrada">
+                                    <option value="entrada">Entrada</option>
+                                    <option value="salida">Salida</option>
+                                    <option value="entrada_mantenimiento">Ingreso por mantenimiento</option>
+                                    <option value="salida_mantenimiento">Salida por mantenimiento</option>
+                                    <option value="entrada_visita">Ingreso de visita</option>
+                                    <option value="salida_visita">Salida de visita</option>
+                                    <option value="retorno">Retorno</option>
+                                    <option value="se_queda">Permanece</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Información del vehículo y asesor (solo lectura) -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Vehículo</label>
+                                <div class="form-control-plaintext" id="editVehiculoInfo"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Asesor</label>
+                                <div class="form-control-plaintext" id="editAsesorInfo"></div>
+                            </div>
+                        </div>
+
+                        <!-- Tabla de detalles de inspección -->
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3">
+                                    <i class="fas fa-cogs"></i> Detalles de Inspección
+                                </h6>
+                                <div class="table-responsive">
+                                    <table id="editDetallesTable" class="table table-striped table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Pieza</th>
+                                                <th>Estado</th>
+                                                <th>Observaciones</th>
+                                                <th>Foto</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Datos dinámicos -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="guardarCambiosInspeccion()">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let inspecciones = [];
+        let dataTable;
+
+        // Los movimientos de mantenimiento y visita se registran desde la
+        // pantalla inicial y no llevan detalle de inspección.
+        const ETIQUETAS_MOVIMIENTO = {
+            entrada: 'Entrada',
+            salida: 'Salida',
+            entrada_mantenimiento: 'Ingreso por mantenimiento',
+            salida_mantenimiento: 'Salida por mantenimiento',
+            entrada_visita: 'Ingreso de visita',
+            salida_visita: 'Salida de visita'
+        };
+
+        // Al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarDatos();
+        });
+
+        // Función para limpiar selecciones
+        function limpiarSelecciones() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            }
+            
+            const btnBorrar = document.getElementById('btnBorrarSeleccionados');
+            if (btnBorrar) {
+                btnBorrar.disabled = true;
+            }
+            
+            const contadorSpan = document.getElementById('contadorSeleccionados');
+            if (contadorSpan) {
+                contadorSpan.textContent = '0';
+            }
+        }
+
+        // Función para cargar todos los datos necesarios
+        async function cargarDatos() {
+            try {
+                console.log('Iniciando carga de datos');
+                const respInspecciones = await fetch('/api/inspecciones');
+                
+                if (!respInspecciones.ok) {
+                    throw new Error(`Error en la respuesta del servidor: ${respInspecciones.status} ${respInspecciones.statusText}`);
+                }
+                
+                inspecciones = await respInspecciones.json();
+                console.log('Inspecciones obtenidas:', inspecciones);
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (inspecciones.length === 0) {
+                    document.getElementById('noInspections').style.display = 'block';
+                    document.getElementById('filtersContainer').style.display = 'none';
+                    document.getElementById('tableContainer').style.display = 'none';
+                    return;
+                }
+                
+                // Mostrar filtros y tabla e inicializar DataTables
+                document.getElementById('filtersContainer').style.display = 'block';
+                document.getElementById('tableContainer').style.display = 'block';
+                document.getElementById('noInspections').style.display = 'none';
+
+                // Contador del encabezado
+                const contador = document.getElementById('totalRegistros');
+                if (contador) {
+                    contador.textContent = `${inspecciones.length} ${inspecciones.length === 1 ? 'registro' : 'registros'}`;
+                }
+                
+                // Destruir tabla existente si existe
+                if (dataTable) {
+                    dataTable.destroy();
+                }
+                
+                // Limpiar selecciones
+                limpiarSelecciones();
+                
+                // Inicializar filtros
+                inicializarFiltros();
+                
+                // Inicializar DataTables
+                inicializarDataTable();
+                
+                // Agregar event listeners para filtros
+                document.getElementById('filtroVehiculo').addEventListener('change', aplicarFiltros);
+                document.getElementById('filtroAsesor').addEventListener('change', aplicarFiltros);
+                document.getElementById('filtroTipo').addEventListener('change', aplicarFiltros);
+                
+            } catch (error) {
+                console.error('Error al cargar datos:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        Error al cargar los datos. Por favor, intente nuevamente.
+                        <br>
+                        <small>${error.message}</small>
+                    </div>
+                `;
+            }
+        }
+
+        // Inicializar DataTable con datos
+        function inicializarDataTable() {
+            dataTable = $('#inspeccionesTable').DataTable({
+                data: inspecciones,
+                language: {
+                    url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+                },
+                responsive: true,
+                pageLength: 25,
+                order: [[2, 'desc']], // Ordenar por fecha descendente (columna 2 ahora)
+                columnDefs: [
+                    { orderable: false, targets: [0, 1, 9] } // Checkbox, control y acciones no ordenables
+                ],
+                columns: [
+                    {
+                        // Columna de checkbox
+                        className: 'select-checkbox',
+                        orderable: false,
+                        data: null,
+                        defaultContent: '',
+                        render: function(data, type, row) {
+                            return `<input type="checkbox" class="row-checkbox" data-id="${row.id}" onchange="actualizarContadorSeleccionados()">`;
+                        },
+                        width: '30px'
+                    },
+                    {
+                        className: 'dt-control',
+                        orderable: false,
+                        data: null,
+                        defaultContent: '<i class="fas fa-plus-circle text-primary"></i>',
+                        width: '30px'
+                    },
+                    {
+                        data: 'fecha',
+                        render: function(data, type) {
+                            const fecha = new Date(data);
+                            // Para ordenar y buscar se usa el valor crudo, no el maquetado
+                            if (type !== 'display') return data;
+                            const dia = fecha.toLocaleDateString('es-ES', {
+                                year: 'numeric', month: '2-digit', day: '2-digit'
+                            });
+                            const hora = fecha.toLocaleTimeString('es-ES', {
+                                hour: '2-digit', minute: '2-digit'
+                            });
+                            return `<span class="mono-cell">${dia}</span> <span class="cell-muted">${hora}</span>`;
+                        }
+                    },
+                    {
+                        data: 'vehiculo_placa',
+                        render: function(data) {
+                            return `<span class="placa-cell">${data || 'Desconocido'}</span>`;
+                        }
+                    },
+                    {
+                        data: null,
+                        render: function(row) {
+                            const marca = row.vehiculo_marca || 'Desconocido';
+                            const modelo = row.vehiculo_modelo || '';
+                            return `${marca} ${modelo}`.trim();
+                        }
+                    },
+                    {
+                        data: 'asesor_nombre',
+                        render: function(data) {
+                            return data || 'Desconocido';
+                        }
+                    },
+                    {
+                        data: 'tipo_entrada',
+                        render: function(data, type) {
+                            const tipo = (data || 'entrada').toLowerCase();
+                            if (type !== 'display') return ETIQUETAS_MOVIMIENTO[tipo] || tipo;
+                            const icono = tipo.startsWith('entrada')
+                                ? 'fa-arrow-right-to-bracket'
+                                : 'fa-arrow-right-from-bracket';
+                            const etiqueta = ETIQUETAS_MOVIMIENTO[tipo] ||
+                                (tipo.charAt(0).toUpperCase() + tipo.slice(1));
+                            return `<span class="tipo-pill tipo-${tipo}">` +
+                                   `<i class="fas ${icono}"></i>${etiqueta}</span>`;
+                        }
+                    },
+                    {
+                        data: 'total_piezas',
+                        render: function(data) {
+                            return `<span class="badge bg-info">${data || 0}</span>`;
+                        }
+                    },
+                    {
+                        data: 'total_fotos',
+                        render: function(data) {
+                            return `<span class="badge bg-secondary">${data || 0}</span>`;
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        render: function(row) {
+                            // En una sola línea: los saltos del template se
+                            // renderizan como texto y estiran la altura de fila.
+                            return `<div class="action-buttons">` +
+                                `<button class="btn btn-sm btn-outline-secondary" onclick="editarInspeccion(${row.id})" title="Editar inspección"><i class="fas fa-edit"></i></button>` +
+                                `<button class="btn btn-sm btn-outline-secondary" onclick="verDetallesCompletos(${row.id})" title="Ver en modal"><i class="fas fa-external-link-alt"></i></button>` +
+                                `</div>`;
+                        },
+                        width: '120px'
+                    }
+                ]
+            });
+
+            // Mostrar botones de acción cuando haya datos
+            if (inspecciones.length > 0) {
+                document.getElementById('selectionActions').style.display = 'flex';
+            }
+
+            // Evento para expandir/colapsar filas hijo
+            $('#inspeccionesTable tbody').on('click', 'td.dt-control', async function () {
+                const tr = $(this).closest('tr');
+                const row = dataTable.row(tr);
+                const icon = $(this).find('i');
+
+                if (row.child.isShown()) {
+                    // Ocultar fila hijo
+                    row.child.hide();
+                    tr.removeClass('shown');
+                    icon.removeClass('fa-minus-circle').addClass('fa-plus-circle');
+                } else {
+                    // Mostrar fila hijo
+                    icon.removeClass('fa-plus-circle').addClass('fa-spinner fa-spin');
+                    const detallesHtml = await generarDetallesHTML(row.data());
+                    row.child(detallesHtml).show();
+                    tr.addClass('shown');
+                    icon.removeClass('fa-spinner fa-spin').addClass('fa-minus-circle');
+                    
+                    // Inicializar DataTable para la tabla anidada
+                    const childTableId = `detalle-table-${row.data().id}`;
+                    initChildTable(childTableId, row.data());
+                }
+            });
+        }
+
+        // Generar HTML para los detalles de una inspección
+        async function generarDetallesHTML(inspeccion) {
+            try {
+                // Obtener detalles completos
+                const response = await fetch(`/api/inspecciones/${inspeccion.id}`);
+                if (!response.ok) {
+                    throw new Error('Error al obtener los detalles');
+                }
+                
+                const data = await response.json();
+                const detalles = data.detalles || [];
+                
+                const tableId = `detalle-table-${inspeccion.id}`;
+                
+                return `
+                    <div class="child-table-container">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <h6 class="text-primary mb-3">
+                                    <i class="fas fa-info-circle"></i> 
+                                    Detalles de Inspección - ${inspeccion.vehiculo_placa || 'Desconocido'}
+                                </h6>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="${tableId}" class="table table-sm table-bordered child-table" style="width:100%">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Pieza</th>
+                                        <th>Estado</th>
+                                        <th>Observaciones</th>
+                                        <th>Foto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${detalles.map(detalle => `
+                                        <tr>
+                                            <td><strong>${detalle.pieza || 'Desconocido'}</strong></td>
+                                            <td>${generarBadgeEstado(detalle.estado)}</td>
+                                            <td class="observaciones-cell">${detalle.observaciones || '-'}</td>
+                                            <td>${generarFotoCell(detalle.foto, detalle.pieza, detalle.estado, detalle.observaciones)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error al cargar detalles:', error);
+                return `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        Error al cargar los detalles de la inspección.
+                    </div>
+                `;
+            }
+        }
+
+        // Inicializar DataTable para tabla hijo
+        function initChildTable(tableId, inspeccionData) {
+            setTimeout(() => {
+                $(`#${tableId}`).DataTable({
+                    searching: false,
+                    paging: false,
+                    info: false,
+                    ordering: true,
+                    language: {
+                        url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+                    },
+                    columnDefs: [
+                        { orderable: false, targets: [3] } // La columna de foto no se puede ordenar
+                    ]
+                });
+            }, 100);
+        }
+
+        // Generar badge para el estado
+        function generarBadgeEstado(estado) {
+            if (!estado) return '<span class="badge bg-secondary">Desconocido</span>';
+            
+            const estadoLower = estado.toLowerCase();
+            let badgeClass = 'bg-secondary';
+            let icon = 'fa-question';
+            
+            if (estadoLower.includes('bueno') || estadoLower.includes('good')) {
+                badgeClass = 'bg-success';
+                icon = 'fa-check';
+            } else if (estadoLower.includes('rayado') || estadoLower.includes('scratch')) {
+                badgeClass = 'bg-warning';
+                icon = 'fa-exclamation-triangle';
+            } else if (estadoLower.includes('abollado') || estadoLower.includes('dent')) {
+                badgeClass = 'bg-danger';
+                icon = 'fa-times';
+            } else if (estadoLower.includes('desconchado') || estadoLower.includes('desportillado') || estadoLower.includes('chip')) {
+                badgeClass = 'bg-info';
+                icon = 'fa-info';
+            } else if (estadoLower.includes('desteñido') || estadoLower.includes('desgastado') || estadoLower.includes('fade')) {
+                badgeClass = 'bg-purple';
+                icon = 'fa-eye-slash';
+            }
+            
+            return `<span class="badge ${badgeClass}"><i class="fas ${icon}"></i> ${estado}</span>`;
+        }
+
+        // Generar celda de foto
+        function generarFotoCell(foto, pieza, estado, observaciones) {
+            if (!foto) {
+                return '<span class="text-muted"><i class="fas fa-image"></i> Sin foto</span>';
+            }
+            
+            return `
+                <div class="photo-cell">
+                    <img src="${foto}" 
+                         class="photo-thumbnail-small" 
+                         onclick="mostrarFoto('${foto}', '${pieza || 'Desconocido'}', '${estado || 'Desconocido'}', '${(observaciones || '').replace(/'/g, "\\'")}')">
+                    <button class="btn btn-xs btn-outline-primary ms-1" 
+                            onclick="mostrarFoto('${foto}', '${pieza || 'Desconocido'}', '${estado || 'Desconocido'}', '${(observaciones || '').replace(/'/g, "\\'")}')">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        // Ver detalles completos en modal
+        async function verDetallesCompletos(id) {
+            await verDetallesInspeccion(id);
+        }
+
+        // Función para mostrar detalles en modal
+        async function verDetallesInspeccion(id) {
+            try {
+                const response = await fetch(`/api/inspecciones/${id}`);
+                if (!response.ok) {
+                    throw new Error('Error al obtener los detalles');
+                }
+                
+                const inspeccion = await response.json();
+                
+                const vehiculoPlaca = inspeccion.vehiculo_placa || 'Desconocido';
+                const vehiculoMarca = inspeccion.vehiculo_marca || 'Desconocido';
+                const vehiculoModelo = inspeccion.vehiculo_modelo || '';
+                const asesorNombre = inspeccion.asesor_nombre || 'Desconocido';
+                const tipoEntrada = inspeccion.tipo_entrada || 'entrada';
+                
+                document.getElementById('detalleVehiculoPlaca').textContent = vehiculoPlaca;
+                document.getElementById('detalleVehiculoModelo').textContent = `${vehiculoMarca} ${vehiculoModelo}`;
+                document.getElementById('detalleFecha').textContent = new Date(inspeccion.fecha).toLocaleString('es-ES');
+                document.getElementById('detalleAsesor').textContent = asesorNombre;
+                document.getElementById('detalleTipo').textContent =
+                    ETIQUETAS_MOVIMIENTO[tipoEntrada] || tipoEntrada;
+                
+                const tbody = document.getElementById('detallesTableBody');
+                tbody.innerHTML = '';
+                
+                if (!inspeccion.detalles || inspeccion.detalles.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="4" class="text-center">
+                            No hay detalles disponibles para esta inspección.
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                } else {
+                    inspeccion.detalles.forEach(detalle => {
+                        const row = document.createElement('tr');
+                        
+                        const fotoBtn = detalle.foto ? 
+                            `<button class="btn btn-sm btn-primary" onclick="mostrarFoto('${detalle.foto}', '${detalle.pieza || 'Desconocido'}', '${detalle.estado || 'Desconocido'}', '${(detalle.observaciones || '').replace(/'/g, "\\'")}')">
+                                <i class="fas fa-image"></i> Ver
+                            </button>` : 
+                            '<span class="text-muted">Sin foto</span>';
+                        
+                        row.innerHTML = `
+                            <td>${detalle.pieza || 'Desconocido'}</td>
+                            <td>${generarBadgeEstado(detalle.estado)}</td>
+                            <td>${detalle.observaciones || '-'}</td>
+                            <td>${fotoBtn}</td>
+                        `;
+                        
+                        tbody.appendChild(row);
+                    });
+                }
+                
+                const modal = new bootstrap.Modal(document.getElementById('inspectionDetailsModal'));
+                modal.show();
+                
+            } catch (error) {
+                console.error('Error al cargar detalles:', error);
+                alert('Error al cargar los detalles de la inspección.');
+            }
+        }
+
+        // Mostrar foto en el modal
+        function mostrarFoto(fotoSrc, pieza, estado, observaciones) {
+            document.getElementById('fullSizePhoto').src = fotoSrc;
+            document.getElementById('piezaName').textContent = pieza;
+            document.getElementById('piezaState').textContent = estado;
+            document.getElementById('piezaObservaciones').textContent = observaciones || 'Sin observaciones';
+            
+            const modal = new bootstrap.Modal(document.getElementById('photoModal'));
+            modal.show();
+        }
+
+        // Inicializar los filtros con valores únicos
+        function inicializarFiltros() {
+            const selectVehiculo = document.getElementById('filtroVehiculo');
+            const selectAsesor = document.getElementById('filtroAsesor');
+            
+            // Objeto para almacenar valores únicos
+            const vehiculosUnicos = {};
+            const asesoresUnicos = {};
+            
+            // Llenar los objetos con valores únicos
+            inspecciones.forEach(inspeccion => {
+                // Verificar que los valores sean válidos y no sean "Desconocido"
+                if (inspeccion.vehiculo_id && inspeccion.vehiculo_placa && inspeccion.vehiculo_placa !== "Desconocido") {
+                    vehiculosUnicos[inspeccion.vehiculo_id] = {
+                        id: inspeccion.vehiculo_id,
+                        placa: inspeccion.vehiculo_placa
+                    };
+                }
+                
+                if (inspeccion.asesor_id && inspeccion.asesor_nombre && inspeccion.asesor_nombre !== "Desconocido") {
+                    asesoresUnicos[inspeccion.asesor_id] = {
+                        id: inspeccion.asesor_id,
+                        nombre: inspeccion.asesor_nombre
+                    };
+                }
+            });
+            
+            console.log("Vehículos encontrados:", Object.values(vehiculosUnicos));
+            console.log("Asesores encontrados:", Object.values(asesoresUnicos));
+            
+            // Limpiar opciones existentes excepto la primera
+            while (selectVehiculo.options.length > 1) {
+                selectVehiculo.remove(1);
+            }
+            
+            while (selectAsesor.options.length > 1) {
+                selectAsesor.remove(1);
+            }
+            
+            // Llenar el selector de vehículos
+            Object.values(vehiculosUnicos).forEach(vehiculo => {
+                const option = document.createElement('option');
+                option.value = vehiculo.id;
+                option.textContent = vehiculo.placa;
+                selectVehiculo.appendChild(option);
+            });
+            
+            // Llenar el selector de asesores
+            Object.values(asesoresUnicos).forEach(asesor => {
+                const option = document.createElement('option');
+                option.value = asesor.id;
+                option.textContent = asesor.nombre;
+                selectAsesor.appendChild(option);
+            });
+        }
+
+        // Aplicar filtros a DataTables
+        function aplicarFiltros() {
+            if (!dataTable) return;
+            
+            const vehiculoId = document.getElementById('filtroVehiculo').value;
+            const asesorId = document.getElementById('filtroAsesor').value;
+            const tipoEntrada = document.getElementById('filtroTipo').value;
+            
+            console.log('Aplicando filtros:', { vehiculoId, asesorId, tipoEntrada });
+            
+            // Agregar/quitar clases visuales para filtros activos
+            const selectVehiculo = document.getElementById('filtroVehiculo');
+            const selectAsesor = document.getElementById('filtroAsesor');
+            const selectTipo = document.getElementById('filtroTipo');
+            
+            // Actualizar clases visuales
+            if (vehiculoId) {
+                selectVehiculo.classList.add('filter-active');
+            } else {
+                selectVehiculo.classList.remove('filter-active');
+            }
+            
+            if (asesorId) {
+                selectAsesor.classList.add('filter-active');
+            } else {
+                selectAsesor.classList.remove('filter-active');
+            }
+            
+            if (tipoEntrada) {
+                selectTipo.classList.add('filter-active');
+            } else {
+                selectTipo.classList.remove('filter-active');
+            }
+            
+            // Aplicar filtros personalizados a DataTables
+            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                const rowData = dataTable.row(dataIndex).data();
+                
+                // Filtrar por vehículo si está seleccionado
+                if (vehiculoId && rowData.vehiculo_id != vehiculoId) {
+                    return false;
+                }
+                
+                // Filtrar por asesor si está seleccionado
+                if (asesorId && rowData.asesor_id != asesorId) {
+                    return false;
+                }
+                
+                // Filtrar por tipo de entrada/salida si está seleccionado
+                if (tipoEntrada && (!rowData.tipo_entrada || rowData.tipo_entrada.toLowerCase() !== tipoEntrada)) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            // Re-dibujar la tabla con los filtros aplicados
+            dataTable.draw();
+            
+            // Limpiar filtros personalizados después del dibujo
+            $.fn.dataTable.ext.search.pop();
+            
+            // Mostrar información de filtros aplicados
+            mostrarInfoFiltros(vehiculoId, asesorId, tipoEntrada);
+        }
+
+        // Mostrar información de filtros aplicados
+        function mostrarInfoFiltros(vehiculoId, asesorId, tipoEntrada) {
+            const filtrosActivos = [];
+            
+            if (vehiculoId) {
+                const vehiculoTexto = document.getElementById('filtroVehiculo').selectedOptions[0].text;
+                filtrosActivos.push(`Vehículo: ${vehiculoTexto}`);
+            }
+            
+            if (asesorId) {
+                const asesorTexto = document.getElementById('filtroAsesor').selectedOptions[0].text;
+                filtrosActivos.push(`Asesor: ${asesorTexto}`);
+            }
+            
+            if (tipoEntrada) {
+                filtrosActivos.push(`Tipo: ${tipoEntrada.charAt(0).toUpperCase() + tipoEntrada.slice(1)}`);
+            }
+            
+            // Actualizar información en la página
+            let infoElement = document.getElementById('filtros-info');
+            if (!infoElement) {
+                infoElement = document.createElement('div');
+                infoElement.id = 'filtros-info';
+                infoElement.className = 'alert alert-info mt-2';
+                document.getElementById('filtersContainer').appendChild(infoElement);
+            }
+            
+            if (filtrosActivos.length > 0) {
+                infoElement.innerHTML = `
+                    <i class="fas fa-filter"></i> 
+                    <strong>Filtros activos:</strong> ${filtrosActivos.join(', ')}
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="limpiarFiltros()">
+                        <i class="fas fa-times"></i> Limpiar
+                    </button>
+                `;
+                infoElement.style.display = 'block';
+            } else {
+                infoElement.style.display = 'none';
+            }
+        }
+
+        // Limpiar todos los filtros
+        function limpiarFiltros() {
+            document.getElementById('filtroVehiculo').value = '';
+            document.getElementById('filtroAsesor').value = '';
+            document.getElementById('filtroTipo').value = '';
+            
+            // Remover clases visuales
+            document.getElementById('filtroVehiculo').classList.remove('filter-active');
+            document.getElementById('filtroAsesor').classList.remove('filter-active');
+            document.getElementById('filtroTipo').classList.remove('filter-active');
+            
+            // Ocultar información de filtros
+            const infoElement = document.getElementById('filtros-info');
+            if (infoElement) {
+                infoElement.style.display = 'none';
+            }
+            
+            // Redibujar tabla sin filtros
+            if (dataTable) {
+                dataTable.draw();
+            }
+        }
+
+        function seleccionarTodos() {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            
+            selectAllCheckbox.checked = true;
+            actualizarContadorSeleccionados();
+        }
+
+        function deseleccionarTodos() {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            selectAllCheckbox.checked = false;
+            actualizarContadorSeleccionados();
+        }
+
+        // Función para toggle del checkbox principal
+        function toggleSelectAll() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            
+            actualizarContadorSeleccionados();
+        }
+
+        // Actualizar contador de seleccionados y estado de botones
+        function actualizarContadorSeleccionados() {
+            const checkboxesSeleccionados = document.querySelectorAll('.row-checkbox:checked');
+            const totalCheckboxes = document.querySelectorAll('.row-checkbox');
+            const contador = checkboxesSeleccionados.length;
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            const btnBorrar = document.getElementById('btnBorrarSeleccionados');
+            const contadorSpan = document.getElementById('contadorSeleccionados');
+            
+            // Actualizar contador
+            contadorSpan.textContent = contador;
+            
+            // Habilitar/deshabilitar botón de borrar
+            btnBorrar.disabled = contador === 0;
+            
+            // Actualizar estado del checkbox principal
+            if (contador === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (contador === totalCheckboxes.length) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+            }
+
+            // Actualizar estilos visuales de las filas
+            totalCheckboxes.forEach(checkbox => {
+                const fila = checkbox.closest('tr');
+                if (checkbox.checked) {
+                    fila.classList.add('row-selected');
+                } else {
+                    fila.classList.remove('row-selected');
+                }
+            });
+        }
+
+        // Confirmar borrado de registros seleccionados
+        function confirmarBorrarSeleccionados() {
+            const checkboxesSeleccionados = document.querySelectorAll('.row-checkbox:checked');
+            
+            if (checkboxesSeleccionados.length === 0) {
+                alert('No hay registros seleccionados para eliminar.');
+                return;
+            }
+            
+            // Obtener datos de los registros seleccionados
+            const registrosSeleccionados = [];
+            checkboxesSeleccionados.forEach(checkbox => {
+                const id = checkbox.getAttribute('data-id');
+                const inspeccion = inspecciones.find(i => i.id == id);
+                if (inspeccion) {
+                    registrosSeleccionados.push(inspeccion);
+                }
+            });
+            
+            // Actualizar modal con información
+            document.getElementById('registrosAEliminar').textContent = registrosSeleccionados.length;
+            
+            // Crear listado de registros
+            const listadoDiv = document.getElementById('listadoRegistros');
+            listadoDiv.innerHTML = registrosSeleccionados.map(reg => {
+                const fecha = new Date(reg.fecha).toLocaleDateString('es-ES');
+                const vehiculo = reg.vehiculo_placa || 'Desconocido';
+                const asesor = reg.asesor_nombre || 'Desconocido';
+                return `<div class="d-flex justify-content-between border-bottom py-1">
+                    <span><strong>${vehiculo}</strong> - ${fecha}</span>
+                    <small class="text-muted">${asesor}</small>
+                </div>`;
+            }).join('');
+            
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+            modal.show();
+        }
+
+        // Función para probar la conectividad del servidor
+        async function probarConectividad() {
+            try {
+                console.log('Probando conectividad del servidor...');
+                const response = await fetch('/api/test');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                console.log('Servidor conectado:', data);
+                return true;
+            } catch (error) {
+                console.error('Error de conectividad:', error);
+                return false;
+            }
+        }
+
+        // Borrar registros seleccionados
+        async function borrarRegistrosSeleccionados() {
+            const checkboxesSeleccionados = document.querySelectorAll('.row-checkbox:checked');
+            const btnConfirmar = document.getElementById('btnConfirmarBorrado');
+            
+            if (checkboxesSeleccionados.length === 0) {
+                return;
+            }
+            
+            // Deshabilitar botón y mostrar loading
+            btnConfirmar.disabled = true;
+            btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+            
+            try {
+                // Primero probar la conectividad
+                const conectado = await probarConectividad();
+                if (!conectado) {
+                    throw new Error('No se puede conectar con el servidor. Verifique que el servidor esté ejecutándose en puerto 3000.');
+                }
+                
+                const idsAEliminar = Array.from(checkboxesSeleccionados).map(checkbox => 
+                    parseInt(checkbox.getAttribute('data-id'))
+                );
+                
+                console.log('IDs a eliminar:', idsAEliminar);
+                console.log('Enviando petición a /api/inspecciones/eliminar-multiple');
+                
+                // Enviar petición al servidor para eliminar registros
+                const response = await fetch('/api/inspecciones/eliminar-multiple', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: idsAEliminar })
+                });
+                
+                console.log('Status de respuesta:', response.status);
+                console.log('Headers de respuesta:', response.headers);
+                
+                if (!response.ok) {
+                    // Intentar leer el contenido de la respuesta para más detalles
+                    let errorText;
+                    try {
+                        errorText = await response.text();
+                        console.log('Contenido de respuesta de error:', errorText);
+                    } catch (e) {
+                        errorText = `Error ${response.status} ${response.statusText}`;
+                    }
+                    throw new Error(errorText);
+                }
+                
+                // Verificar si la respuesta es JSON válido
+                let resultado;
+                try {
+                    const responseText = await response.text();
+                    console.log('Texto de respuesta:', responseText);
+                    resultado = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Error al parsear JSON:', e);
+                    throw new Error('Respuesta del servidor no es JSON válido');
+                }
+                
+                console.log('Resultado del servidor:', resultado);
+                
+                // Cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
+                modal.hide();
+                
+                // Mostrar mensaje de éxito
+                mostrarMensajeExito(`Se eliminaron ${resultado.eliminados} registro(s) correctamente.`);
+                
+                // Recargar datos
+                await cargarDatos();
+                
+            } catch (error) {
+                console.error('Error al eliminar registros:', error);
+                
+                // Mostrar mensaje de error más específico
+                let mensajeError = 'Error desconocido';
+                if (error.message) {
+                    if (error.message.includes('<!DOCTYPE')) {
+                        mensajeError = 'El servidor devolvió una página HTML en lugar de datos JSON. Verifique que el servidor esté funcionando correctamente.';
+                    } else {
+                        mensajeError = error.message;
+                    }
+                }
+                
+                alert(`Error al eliminar los registros: ${mensajeError}`);
+                
+                // Restaurar botón
+                btnConfirmar.disabled = false;
+                btnConfirmar.innerHTML = '<i class="fas fa-trash"></i> Eliminar Registros';
+            }
+        }
+
+        // Mostrar mensaje de éxito
+        function mostrarMensajeExito(mensaje) {
+            // Crear elemento de alerta
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i> ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            // Insertar al inicio del container
+            const container = document.querySelector('.container');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            // Auto-remover después de 5 segundos
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Variable global para almacenar los datos de la inspección en edición
+        let inspeccionEnEdicion = null;
+
+        // Función para editar una inspección
+        async function editarInspeccion(id) {
+            try {
+                // Obtener datos completos de la inspección
+                const response = await fetch(`/api/inspecciones/${id}`);
+                if (!response.ok) {
+                    throw new Error('Error al obtener los datos de la inspección');
+                }
+                
+                inspeccionEnEdicion = await response.json();
+                console.log('Datos de inspección obtenidos:', inspeccionEnEdicion);
+                
+                // Llenar formulario con datos básicos
+                document.getElementById('editOdometro').value = inspeccionEnEdicion.odometro || '';
+                document.getElementById('editTipoEntrada').value = inspeccionEnEdicion.tipo_entrada || 'entrada';
+                
+                // Información del vehículo y asesor (solo lectura)
+                const vehiculoInfo = `${inspeccionEnEdicion.vehiculo_placa || 'Desconocido'} - ${inspeccionEnEdicion.vehiculo_marca || ''} ${inspeccionEnEdicion.vehiculo_modelo || ''}`.trim();
+                document.getElementById('editVehiculoInfo').textContent = vehiculoInfo;
+                document.getElementById('editAsesorInfo').textContent = inspeccionEnEdicion.asesor_nombre || 'Desconocido';
+                
+                // Llenar tabla de detalles
+                llenarTablaDetallesEdicion(inspeccionEnEdicion.detalles || []);
+                
+                // Mostrar modal
+                const modal = new bootstrap.Modal(document.getElementById('editInspectionModal'));
+                modal.show();
+                
+            } catch (error) {
+                console.error('Error al cargar datos para editar:', error);
+                alert('Error al cargar los datos de la inspección: ' + error.message);
+            }
+        }
+
+        // Llenar tabla de detalles para edición
+        function llenarTablaDetallesEdicion(detalles) {
+            const tbody = document.querySelector('#editDetallesTable tbody');
+            tbody.innerHTML = '';
+            
+            detalles.forEach((detalle, index) => {
+                const fila = document.createElement('tr');
+                fila.innerHTML = `
+                    <td>
+                        <strong>${detalle.pieza || 'Desconocido'}</strong>
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm" data-index="${index}" data-field="estado">
+                            <option value="Buen estado" ${detalle.estado === 'Buen estado' ? 'selected' : ''}>Buen estado</option>
+                            <option value="Rayado" ${detalle.estado === 'Rayado' ? 'selected' : ''}>Rayado</option>
+                            <option value="Desportillado" ${detalle.estado === 'Desportillado' ? 'selected' : ''}>Desportillado</option>
+                            <option value="Abollado" ${detalle.estado === 'Abollado' ? 'selected' : ''}>Abollado</option>
+                            <option value="Roto" ${detalle.estado === 'Roto' ? 'selected' : ''}>Roto</option>
+                            <option value="Desgastado" ${detalle.estado === 'Desgastado' ? 'selected' : ''}>Desgastado</option>
+                            <option value="Otro" ${detalle.estado === 'Otro' ? 'selected' : ''}>Otro</option>
+                        </select>
+                    </td>
+                    <td>
+                        <textarea class="form-control form-control-sm" rows="2" data-index="${index}" data-field="observaciones" placeholder="Observaciones...">${detalle.observaciones || ''}</textarea>
+                    </td>
+                    <td>
+                        ${detalle.foto ? 
+                            `<img src="${detalle.foto}" alt="Foto de ${detalle.pieza}" class="photo-thumbnail-small" onclick="mostrarFoto('${detalle.foto}', '${detalle.pieza}', '${detalle.estado}', '${detalle.observaciones || ''}')" style="cursor: pointer;">` 
+                            : '<span class="text-muted">Sin foto</span>'
+                        }
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarDetalleEdicion(${index})" title="Eliminar detalle">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(fila);
+            });
+            
+            // Agregar event listeners para cambios
+            tbody.querySelectorAll('select, textarea').forEach(elemento => {
+                elemento.addEventListener('change', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    const field = this.getAttribute('data-field');
+                    if (inspeccionEnEdicion.detalles[index]) {
+                        inspeccionEnEdicion.detalles[index][field] = this.value;
+                    }
+                });
+            });
+        }
+
+        // Eliminar detalle de la inspección en edición
+        function eliminarDetalleEdicion(index) {
+            if (confirm('¿Está seguro de que desea eliminar este detalle de la inspección?')) {
+                inspeccionEnEdicion.detalles.splice(index, 1);
+                llenarTablaDetallesEdicion(inspeccionEnEdicion.detalles);
+            }
+        }
+
+        // Guardar cambios de la inspección
+        async function guardarCambiosInspeccion() {
+            if (!inspeccionEnEdicion) {
+                alert('No hay datos de inspección para guardar');
+                return;
+            }
+            
+            try {
+                // Obtener valores actualizados del formulario
+                const datosActualizados = {
+                    id: inspeccionEnEdicion.id,
+                    odometro: parseInt(document.getElementById('editOdometro').value) || 0,
+                    tipo_entrada: document.getElementById('editTipoEntrada').value,
+                    detalles: inspeccionEnEdicion.detalles
+                };
+                
+                console.log('Datos para enviar:', datosActualizados);
+                console.log('URL del endpoint:', `/api/inspecciones/${inspeccionEnEdicion.id}`);
+                
+                // Deshabilitar botón de guardar mientras se procesa
+                const btnGuardar = document.querySelector('button[onclick="guardarCambiosInspeccion()"]');
+                if (btnGuardar) {
+                    btnGuardar.disabled = true;
+                    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+                }
+                
+                // Enviar al servidor
+                console.log('Enviando petición PUT...');
+                const response = await fetch(`/api/inspecciones/${inspeccionEnEdicion.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(datosActualizados)
+                });
+                
+                console.log('Respuesta recibida:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries(response.headers.entries())
+                });
+                
+                if (!response.ok) {
+                    console.error('Response no ok:', response.status, response.statusText);
+                    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                    
+                    try {
+                        const errorData = await response.json();
+                        console.error('Datos de error:', errorData);
+                        errorMessage = errorData.error || errorMessage;
+                    } catch (e) {
+                        console.error('No se pudo parsear respuesta de error como JSON');
+                        // Intentar leer como texto
+                        try {
+                            const errorText = await response.text();
+                            console.error('Respuesta de error como texto:', errorText);
+                            if (errorText.includes('<!DOCTYPE')) {
+                                errorMessage = 'El servidor devolvió HTML en lugar de JSON. Verifique la configuración del servidor.';
+                            } else {
+                                errorMessage = errorText;
+                            }
+                        } catch (e2) {
+                            console.error('No se pudo leer respuesta de error:', e2);
+                        }
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                const resultado = await response.json();
+                console.log('Resultado exitoso:', resultado);
+                
+                // Cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editInspectionModal'));
+                modal.hide();
+                
+                // Mostrar mensaje de éxito
+                mostrarMensajeExito('Inspección actualizada correctamente.');
+                
+                // Recargar datos
+                await cargarDatos();
+                
+                // Limpiar variable global
+                inspeccionEnEdicion = null;
+                
+            } catch (error) {
+                console.error('Error al guardar cambios:', error);
+                alert('Error al guardar los cambios: ' + error.message);
+            } finally {
+                // Restaurar botón de guardar
+                const btnGuardar = document.querySelector('button[onclick="guardarCambiosInspeccion()"]');
+                if (btnGuardar) {
+                    btnGuardar.disabled = false;
+                    btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
+                }
+            }
+        }
+    </script>
+</body>
+</html> 

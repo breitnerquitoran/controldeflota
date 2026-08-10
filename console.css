@@ -1,0 +1,643 @@
+/* ============================================================
+   CONSOLA DE DATOS — histórico, odómetros y administración
+   Capa compartida por las tres páginas de tablas.
+   Ámbito: body.data-console (no toca index.html ni inspection.html)
+
+   Criterio: densidad alta y jerarquía por peso y espacio, no por
+   bloques de color. Sustituye los gradientes, sombras profundas y
+   títulos de 2.5–3rem que traían las páginas por separado.
+   Depende de los tokens definidos en app.css.
+   ============================================================ */
+
+.data-console {
+    font-family: var(--font-ui);
+    font-size: 14px;
+    color: var(--foreground);
+    letter-spacing: -0.006em;
+    background: var(--canvas);
+    /* app.css centra el body como columna flex para la pantalla de
+       inspección; aquí las páginas son de ancho completo. */
+    display: block;
+    align-items: stretch;
+    padding: 0;
+}
+
+/* ---------- Encabezado de página ---------- */
+/* La marca entra como una barra fina a la izquierda, no como un
+   bloque cian a sangre con el título en 3rem. */
+.data-console .page-header,
+.data-console .odometer-card {
+    background: var(--surface);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--brand-primary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 18px 24px;
+    margin-bottom: 22px;
+    text-align: left;
+    overflow: visible;
+}
+
+/* Brillos y barras decorativas heredadas */
+.data-console .odometer-card::before,
+.data-console .stats-card::before {
+    display: none;
+}
+
+.data-console .page-header h1,
+.data-console .odometer-card h1,
+.data-console .page-title {
+    font-size: 1.375rem;
+    font-weight: 650;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    color: var(--foreground);
+    margin: 0 0 2px 0;
+    text-shadow: none;
+    text-align: left;
+}
+
+.data-console .page-header p,
+.data-console .odometer-card p,
+.data-console .page-subtitle {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--muted-foreground);
+    opacity: 1;
+    margin: 0;
+}
+
+.data-console .back-link {
+    color: var(--muted-foreground);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.data-console .back-link:hover {
+    color: var(--brand-primary-700);
+    transform: none;
+}
+
+/* ---------- Contenedor de tabla / tarjeta ---------- */
+.data-console .table-container,
+.data-console .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+}
+
+.data-console .card:hover {
+    transform: none;
+    box-shadow: var(--box-shadow);
+}
+
+.data-console .table-header,
+.data-console .card-header {
+    background: var(--surface-2);
+    color: var(--foreground);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.data-console .table-title,
+.data-console .card-header h5 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.data-console .table-title i,
+.data-console .card-header h5 i {
+    color: var(--brand-primary);
+    font-size: 0.875rem;
+}
+
+.data-console .btn-new {
+    background: var(--brand-primary-700);
+    border: 1px solid var(--brand-primary-700);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    padding: 7px 14px;
+    font-size: 0.8125rem;
+    font-weight: 550;
+}
+
+.data-console .btn-new:hover {
+    background: var(--brand-primary-800);
+    border-color: var(--brand-primary-800);
+    color: #fff;
+    transform: none;
+}
+
+/* ---------- Tabla ---------- */
+.data-console .dataTables_wrapper {
+    padding: 16px 20px 8px;
+}
+
+.data-console table.dataTable {
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+    color: var(--foreground);
+    width: 100%;
+}
+
+/* Cabecera en versalitas pequeñas: sin gradiente gris ni el
+   subrayado cian de 3px que competía con el contenido. */
+.data-console table.dataTable thead th {
+    background: transparent;
+    color: var(--muted-foreground);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: left;
+    padding: 10px 12px;
+    border: none;
+    border-bottom: 1px solid var(--border-strong);
+    white-space: nowrap;
+}
+
+.data-console table.dataTable tbody td {
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.45;
+}
+
+.data-console table.dataTable tbody tr {
+    transition: background-color 0.12s ease;
+}
+
+/* El hover pinta, no desplaza: desplazar filas al pasar el cursor
+   hace saltar la vista y estorba al apuntar en tablet. */
+.data-console table.dataTable tbody tr:hover,
+.data-console table.dataTable tbody tr:hover > td {
+    background-color: var(--brand-primary-050);
+    transform: none;
+    box-shadow: none;
+}
+
+/* El cebreado va en la fila; las celdas quedan transparentes (ver abajo) */
+.data-console table.dataTable.table-striped tbody tr:nth-of-type(odd) {
+    background-color: var(--surface-2);
+}
+
+/* DataTables tiñe la columna por la que se ordena; sobre las filas ya
+   cebreadas queda como una banda gris suelta a la izquierda. Sus reglas
+   llevan más clases, así que hace falta !important para ganarlas. */
+/* DataTables 1.13 pinta el cebreado, el hover y la columna ordenada con
+   box-shadow interior sobre cada celda, no con background-color. Se anula
+   por completo: el cebreado ya lo pone la fila, y así la columna ordenada
+   deja de verse como una banda de otro tono. */
+.data-console table.dataTable tbody td,
+.data-console table.dataTable > tbody > tr > td {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+/* El cebreado pasa a la fila para que la celda ordenada no lo tape */
+.data-console table.dataTable tbody tr.odd,
+.data-console table.dataTable.display tbody tr.odd {
+    background-color: var(--surface-2);
+}
+
+.data-console table.dataTable tbody tr.even,
+.data-console table.dataTable.display tbody tr.even {
+    background-color: transparent;
+}
+
+/* Cabecera: la flecha de orden no debe empujar el rótulo */
+.data-console table.dataTable thead th.sorting,
+.data-console table.dataTable thead th.sorting_asc,
+.data-console table.dataTable thead th.sorting_desc {
+    padding-right: 24px;
+}
+
+.data-console table.dataTable tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Datos que se comparan en vertical: cifras tabulares */
+.data-console .placa-cell,
+.data-console .mono-cell,
+.data-console td .km-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    font-size: 0.8125rem;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+    background: transparent;
+}
+
+/* ---------- Controles de DataTables ---------- */
+.data-console .dataTables_filter {
+    margin-bottom: 12px;
+}
+
+.data-console .dataTables_filter label,
+.data-console .dataTables_length label,
+.data-console .dataTables_info {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+}
+
+.data-console .dataTables_filter input,
+.data-console .dataTables_length select {
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 7px 11px;
+    margin-left: 8px;
+    font-size: 0.8125rem;
+    font-family: var(--font-ui);
+    color: var(--foreground);
+    background: var(--surface);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.data-console .dataTables_filter input:focus,
+.data-console .dataTables_length select:focus {
+    border-color: var(--brand-primary);
+    box-shadow: var(--ring);
+    outline: none;
+}
+
+.data-console .dataTables_paginate .paginate_button {
+    border: 1px solid transparent !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 5px 11px !important;
+    margin: 0 2px !important;
+    font-size: 0.8125rem !important;
+    color: var(--muted-foreground) !important;
+    background: transparent !important;
+}
+
+.data-console .dataTables_paginate .paginate_button:hover {
+    background: var(--surface-2) !important;
+    border-color: var(--border) !important;
+    color: var(--foreground) !important;
+}
+
+.data-console .dataTables_paginate .paginate_button.current,
+.data-console .dataTables_paginate .paginate_button.current:hover {
+    background: var(--brand-primary-700) !important;
+    border-color: var(--brand-primary-700) !important;
+    color: #fff !important;
+}
+
+.data-console .dataTables_paginate .paginate_button.disabled {
+    color: var(--border-strong) !important;
+    background: transparent !important;
+}
+
+/* ---------- Distintivos ---------- */
+/* Tono suave con texto oscuro: a 11px son más legibles que los
+   rellenos saturados de Bootstrap con texto blanco. */
+.data-console .badge {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 3px 8px;
+    border-radius: 5px;
+    line-height: 1.5;
+}
+
+.data-console .badge i {
+    margin-right: 3px;
+    font-size: 0.625rem;
+}
+
+.data-console .badge.bg-info {
+    background-color: var(--brand-primary-050) !important;
+    color: var(--brand-primary-800) !important;
+}
+
+.data-console .badge.bg-secondary {
+    background-color: #eef1f5 !important;
+    color: #55636f !important;
+}
+
+.data-console .badge.bg-success {
+    background-color: #e6f6ed !important;
+    color: #157a43 !important;
+}
+
+.data-console .badge.bg-warning {
+    background-color: #fdf1e0 !important;
+    color: #9a5d00 !important;
+}
+
+.data-console .badge.bg-danger {
+    background-color: #fdeaea !important;
+    color: #b3272b !important;
+}
+
+.data-console .badge.bg-purple {
+    background-color: #f3ecfc !important;
+    color: #6b3aa8 !important;
+}
+
+/* ---------- Botones de acción en fila ---------- */
+.data-console .btn-action,
+.data-console table .btn-sm {
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.data-console .btn-action:hover,
+.data-console table .btn-sm:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Acciones de fila: iconos discretos. Rellenarlos de color hace que
+   compitan con los datos y que editar y ver parezcan lo mismo. */
+.data-console table .btn-sm.btn-outline-secondary {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--muted-foreground);
+}
+
+.data-console table .btn-sm.btn-outline-secondary:hover {
+    background: var(--brand-primary-050);
+    border-color: var(--brand-primary);
+    color: var(--brand-primary-800);
+}
+
+/* Barra de selección del histórico: acciones secundarias, no titulares */
+.data-console .card-header .btn {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 5px 11px;
+    border-radius: var(--radius-sm);
+}
+
+/* app.css usa .action-buttons para la barra de acciones del formulario de
+   inicio (margin-top 30px, padding-top 25px y un border-top). Aquí el mismo
+   nombre son los botones de una fila: hay que anular esa herencia. */
+.data-console table .action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border-top: none;
+    text-align: left;
+}
+
+/* ---------- Barra de navegación ---------- */
+.data-console .navbar.bg-dark {
+    background-color: #16232e !important;
+    margin-bottom: 24px;
+    padding: 10px 0;
+}
+
+.data-console .navbar-brand {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.data-console .navbar .nav-link {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 6px 12px !important;
+    border-radius: var(--radius-sm);
+}
+
+/* El estado activo ya lo marca el filete rosa de app.css; un fondo
+   además de eso son dos señales para lo mismo. */
+.data-console .navbar .nav-link.active {
+    background-color: transparent;
+    color: #fff !important;
+}
+
+/* ---------- Detalle anidado (fila hija del histórico) ---------- */
+/* Se lee como una ficha embutida en la tabla, no como una segunda
+   tabla suelta: fondo hundido, tarjeta blanca encima y un filete
+   cian que la ata visualmente a la fila que la desplegó. */
+.data-console .child-table-container {
+    background: var(--surface-2);
+    border: none;
+    border-left: 3px solid var(--brand-primary);
+    border-radius: 0;
+    box-shadow: inset 0 1px 3px rgba(16, 40, 64, 0.05);
+    padding: 16px 18px;
+    margin: 0;
+}
+
+.data-console .child-table-container h6 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-foreground);
+    margin: 0 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.data-console .child-table-container h6 i {
+    color: var(--brand-primary);
+}
+
+.data-console .child-table-container .row {
+    margin-bottom: 0 !important;
+}
+
+.data-console table.child-table {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: 0 !important;
+    font-size: 0.8125rem;
+}
+
+/* La cabecera cian a sangre pesaba más que los propios datos */
+.data-console table.child-table thead th {
+    background: var(--surface-2) !important;
+    color: var(--muted-foreground) !important;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: left;
+    padding: 9px 12px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+}
+
+.data-console table.child-table tbody td {
+    padding: 9px 12px;
+    border-top: none;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    color: var(--foreground);
+}
+
+.data-console table.child-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.data-console table.child-table tbody tr:hover > td {
+    background-color: var(--brand-primary-050);
+}
+
+/* Nombre de la pieza: el ancla de lectura de cada fila */
+.data-console table.child-table tbody td strong {
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: -0.005em;
+    color: var(--foreground);
+}
+
+.data-console .observaciones-cell {
+    max-width: 280px;
+    word-wrap: break-word;
+    font-size: 0.78125rem;
+    line-height: 1.5;
+    color: var(--muted-foreground);
+}
+
+.data-console .photo-thumbnail-small {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    transition: border-color 0.15s ease;
+}
+
+.data-console .photo-thumbnail-small:hover {
+    transform: none;
+    border-color: var(--brand-primary);
+    box-shadow: var(--ring);
+}
+
+/* Lupa junto a la miniatura: acción auxiliar, mismo tono que el resto */
+.data-console .photo-cell .btn-xs {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--muted-foreground);
+    padding: 4px 7px;
+    font-size: 0.6875rem;
+    border-radius: 5px;
+}
+
+.data-console .photo-cell .btn-xs:hover {
+    background: var(--brand-primary-050);
+    border-color: var(--brand-primary);
+    color: var(--brand-primary-800);
+}
+
+/* Control de expansión: solo el icono de la celda, sin el fondo
+   de tres puntos que app.css dibujaba debajo (y en otro azul). */
+.data-console td.dt-control {
+    background: none !important;
+    cursor: pointer;
+    text-align: center;
+    width: 34px !important;
+}
+
+/* DataTables dibuja además su propio triángulo por ::before; con el
+   icono de Font Awesome del render quedaban dos marcas por celda. */
+.data-console td.dt-control::before,
+.data-console tr.shown td.dt-control::before {
+    content: none !important;
+    display: none !important;
+}
+
+.data-console td.dt-control i {
+    color: var(--brand-primary);
+    font-size: 0.9375rem;
+    transition: color 0.15s ease;
+}
+
+.data-console tr.shown td.dt-control i {
+    color: var(--muted-foreground);
+}
+
+/* ---------- Panel de filtros ---------- */
+.data-console .filters {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 16px 20px;
+    margin-bottom: 18px;
+}
+
+/* ---------- Formularios y modales ---------- */
+.data-console .form-label,
+.data-console .form-group label {
+    font-size: 0.8125rem;
+    font-weight: 550;
+    color: var(--foreground);
+    margin-bottom: 6px;
+}
+
+.data-console .form-control,
+.data-console .form-select {
+    font-family: var(--font-ui);
+    font-size: 0.8125rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--foreground);
+}
+
+.data-console .form-control:focus,
+.data-console .form-select:focus {
+    border-color: var(--brand-primary);
+    box-shadow: var(--ring);
+}
+
+.data-console .modal-content {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+}
+
+.data-console .modal-header {
+    background: var(--surface-2);
+    color: var(--foreground);
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    padding: 15px 20px;
+}
+
+.data-console .modal-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.data-console .modal-header .btn-close {
+    filter: none;
+    opacity: 0.5;
+}
+
+.data-console .modal-body {
+    background: var(--surface);
+    padding: 20px;
+}

@@ -1,0 +1,2517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maestranza - Mantenimientos</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Generación del reporte de mantenimientos en PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="console.css">
+    <style>
+        /* Encabezado, tablas, formularios y modales vienen de console.css */
+
+        .maestranza-container {
+            max-width: 1500px;
+            margin: 0 auto 32px;
+            padding: 0;
+        }
+
+        .page-header .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* ---------- Pestañas ---------- */
+        .nav-tabs {
+            border-bottom: 1px solid var(--border);
+            gap: 2px;
+        }
+
+        .nav-tabs .nav-link {
+            border: none;
+            border-bottom: 2px solid transparent;
+            border-radius: 0;
+            padding: 9px 16px;
+            font-size: 0.8125rem;
+            font-weight: 550;
+            color: var(--muted-foreground);
+            background: transparent;
+        }
+
+        .nav-tabs .nav-link i {
+            margin-right: 6px;
+            font-size: 0.75rem;
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: var(--foreground);
+            border-bottom-color: var(--border-strong);
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--brand-primary-800);
+            border-bottom-color: var(--brand-primary);
+        }
+
+        .tab-badge {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 0.625rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+            background: var(--brand-accent-050);
+            color: var(--brand-accent-700);
+        }
+
+        /* ---------- Filtros ---------- */
+        .filters {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 16px 20px;
+            margin: 18px 0;
+        }
+
+        .filters .form-label {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted-foreground);
+            margin-bottom: 5px;
+        }
+
+        /* ---------- Celdas ---------- */
+        .placa-cell {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            font-size: 0.8125rem;
+            color: var(--brand-primary-800);
+        }
+
+        .pieza-cell {
+            font-weight: 550;
+            color: var(--foreground);
+        }
+
+        .cell-muted {
+            color: var(--muted-foreground);
+            font-size: 0.75rem;
+        }
+
+        .fecha-cell {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.78125rem;
+        }
+
+        .costo-cell {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-weight: 550;
+        }
+
+        .orden-cell {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+        }
+
+        /* ---------- Distintivos de estado ---------- */
+        /* Tono suave con texto oscuro, igual que el resto de la consola */
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .pill i {
+            font-size: 0.625rem;
+        }
+
+        .pill-pendiente   { background: #fdf1e0; color: #9a5d00; }
+        .pill-en_orden    { background: var(--brand-primary-050); color: var(--brand-primary-800); }
+        .pill-atendido    { background: #e6f6ed; color: #157a43; }
+        .pill-descartado  { background: #eef1f5; color: #55636f; }
+
+        .pill-en_proceso  { background: var(--brand-primary-050); color: var(--brand-primary-800); }
+        .pill-finalizado  { background: #e6f6ed; color: #157a43; }
+        .pill-anulado     { background: #eef1f5; color: #55636f; }
+
+        .pill-preventivo  { background: #e6f6ed; color: #157a43; }
+        .pill-correctivo  { background: #fdeaea; color: #b3272b; }
+        .pill-lavado      { background: var(--brand-primary-050); color: var(--brand-primary-800); }
+        .pill-pintado     { background: var(--brand-accent-050); color: var(--brand-accent-700); }
+
+        .pill-alta        { background: #fdeaea; color: #b3272b; }
+        .pill-media       { background: #fdf1e0; color: #9a5d00; }
+        .pill-baja        { background: #eef1f5; color: #55636f; }
+
+        .pill-entrada     { background: #e6f6ed; color: #157a43; }
+        .pill-salida      { background: var(--brand-accent-050); color: var(--brand-accent-700); }
+
+        /* ---------- Formulario del mantenimiento ---------- */
+        .modal-xl-form .modal-dialog {
+            max-width: 1000px;
+        }
+
+        .form-section {
+            margin-bottom: 20px;
+        }
+
+        .form-section-title {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted-foreground);
+            padding-bottom: 6px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .campo-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--foreground);
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .modal-body textarea.form-control {
+            min-height: 62px;
+            font-size: 0.8125rem;
+        }
+
+        /* ---------- Tabla de insumos ---------- */
+        #tablaInsumos {
+            width: 100%;
+            font-size: 0.8125rem;
+        }
+
+        #tablaInsumos th {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted-foreground);
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border-strong);
+            text-align: left;
+        }
+
+        #tablaInsumos td {
+            padding: 5px 4px;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--border);
+        }
+
+        #tablaInsumos input {
+            width: 100%;
+            border: 1px solid var(--border-strong);
+            border-radius: 6px;
+            padding: 6px 9px;
+            font-size: 0.8125rem;
+            font-family: var(--font-ui);
+        }
+
+        #tablaInsumos input:focus {
+            border-color: var(--brand-primary);
+            box-shadow: var(--ring);
+            outline: none;
+        }
+
+        #tablaInsumos input.num {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+        }
+
+        .subtotal-celda {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-weight: 550;
+            text-align: right;
+            padding-right: 8px !important;
+            white-space: nowrap;
+        }
+
+        .btn-quitar-insumo {
+            background: transparent;
+            border: 1px solid var(--border-strong);
+            color: var(--muted-foreground);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.6875rem;
+        }
+
+        .btn-quitar-insumo:hover {
+            background: #fdeaea;
+            border-color: #f0b9ba;
+            color: #b3272b;
+        }
+
+        .btn-agregar-insumo {
+            background: transparent;
+            border: 1px dashed var(--border-strong);
+            color: var(--brand-primary-800);
+            border-radius: var(--radius-sm);
+            padding: 7px 14px;
+            font-size: 0.75rem;
+            font-weight: 550;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .btn-agregar-insumo:hover {
+            border-color: var(--brand-primary);
+            background: var(--brand-primary-050);
+        }
+
+        /* ---------- Totales ---------- */
+        .totales {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            margin-top: 14px;
+        }
+
+        .totales .linea {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 0.8125rem;
+            padding: 3px 0;
+            color: var(--muted-foreground);
+        }
+
+        .totales .linea.total {
+            border-top: 1px solid var(--border-strong);
+            margin-top: 6px;
+            padding-top: 8px;
+            font-size: 0.9375rem;
+            font-weight: 650;
+            color: var(--foreground);
+        }
+
+        .totales .valor {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ---------- Estados vacíos ---------- */
+        .vacio {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: 48px 32px;
+            text-align: center;
+            box-shadow: var(--box-shadow);
+        }
+
+        .vacio i {
+            font-size: 1.75rem;
+            color: var(--border-strong);
+            margin-bottom: 12px;
+        }
+
+        .vacio h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--foreground);
+            margin-bottom: 6px;
+        }
+
+        .vacio p {
+            color: var(--muted-foreground);
+            font-size: 0.8125rem;
+            margin: 0;
+        }
+
+        /* ---------- Resumen de la programación preventiva ---------- */
+        .resumen-preventivo {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 18px 0 0;
+        }
+
+        .tarjeta-resumen {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* El filete de color a la izquierda es la señal de urgencia */
+        .tarjeta-resumen.vencido    { border-left: 3px solid #e5484d; }
+        .tarjeta-resumen.por_vencer { border-left: 3px solid #d98200; }
+        .tarjeta-resumen.al_dia     { border-left: 3px solid #1f9d57; }
+        .tarjeta-resumen.sin_dato   { border-left: 3px solid var(--border-strong); }
+
+        .tarjeta-resumen .icono {
+            flex: 0 0 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+        }
+
+        .tarjeta-resumen.vencido .icono    { background: #fdeaea; color: #b3272b; }
+        .tarjeta-resumen.por_vencer .icono { background: #fdf1e0; color: #9a5d00; }
+        .tarjeta-resumen.al_dia .icono     { background: #e6f6ed; color: #157a43; }
+        .tarjeta-resumen.sin_dato .icono   { background: #eef1f5; color: #55636f; }
+
+        .tarjeta-resumen .cifra {
+            display: block;
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-size: 1.375rem;
+            font-weight: 600;
+            line-height: 1.1;
+            color: var(--foreground);
+        }
+
+        .tarjeta-resumen .rotulo {
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted-foreground);
+        }
+
+        .pill-vencido      { background: #fdeaea; color: #b3272b; }
+        .pill-por_vencer   { background: #fdf1e0; color: #9a5d00; }
+        .pill-al_dia       { background: #e6f6ed; color: #157a43; }
+        .pill-sin_odometro { background: #eef1f5; color: #55636f; }
+
+        .km-cell {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.8125rem;
+        }
+
+        /* Los kilómetros que faltan son el dato que se escanea en la tabla */
+        .restante {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            font-size: 0.8125rem;
+        }
+
+        .restante.vencido    { color: #b3272b; }
+        .restante.por_vencer { color: #9a5d00; }
+        .restante.al_dia     { color: var(--muted-foreground); font-weight: 500; }
+
+        .rutina-cell {
+            font-weight: 550;
+            color: var(--foreground);
+        }
+
+        .rutina-inactiva {
+            opacity: 0.55;
+        }
+
+        .opciones-lote {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+        }
+
+        .opciones-lote label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8125rem;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .nota-modal {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+            margin: 4px 0 0;
+        }
+
+        @media (max-width: 992px) {
+            .resumen-preventivo {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Aviso de esquema pendiente */
+        .aviso-esquema {
+            background: #fdf1e0;
+            border: 1px solid #f5d9ac;
+            border-radius: var(--border-radius);
+            padding: 16px 20px;
+            margin-bottom: 18px;
+            color: #7a4a00;
+            font-size: 0.8125rem;
+        }
+
+        .aviso-esquema strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.875rem;
+        }
+
+        .aviso-esquema code {
+            background: rgba(0, 0, 0, 0.06);
+            padding: 1px 5px;
+            border-radius: 4px;
+            color: inherit;
+        }
+    </style>
+</head>
+<body class="data-console">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-car-side"></i> Inspecciones Vehiculares
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html"><i class="fas fa-home"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="historico.html"><i class="fas fa-history"></i> Histórico</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="odometros.html"><i class="fas fa-tachometer-alt"></i> Odómetros</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="maestranza.html"><i class="fas fa-screwdriver-wrench"></i> Maestranza</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="admin.html"><i class="fas fa-cogs"></i> Administración</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="maestranza-container">
+            <div class="page-header">
+                <div class="header-row">
+                    <div>
+                        <h1 class="page-title">Maestranza</h1>
+                        <p class="page-subtitle">Daños reportados en inspecciones y órdenes de mantenimiento</p>
+                    </div>
+                    <a href="index.html" class="back-link">
+                        <i class="fas fa-arrow-left me-2"></i>Volver al inicio
+                    </a>
+                </div>
+            </div>
+
+            <div id="avisoEsquema" class="aviso-esquema" style="display: none;">
+                <strong>Faltan tablas del módulo en la base de datos</strong>
+                Ejecuta <code>supabase-mantenimientos.sql</code> y <code>supabase-preventivos.sql</code>
+                en el SQL Editor de Supabase para habilitar la bandeja de daños, los mantenimientos
+                y la programación preventiva.
+                <div id="avisoDetalle" class="mt-2" style="font-size: 0.75rem; opacity: 0.85;"></div>
+            </div>
+
+            <ul class="nav nav-tabs" id="maestranzaTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabDanos" type="button" role="tab">
+                        <i class="fas fa-triangle-exclamation"></i>Bandeja de daños
+                        <span class="tab-badge" id="contadorPendientes">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabMantenimientos" type="button" role="tab">
+                        <i class="fas fa-screwdriver-wrench"></i>Mantenimientos
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabPreventivos" type="button" role="tab">
+                        <i class="fas fa-calendar-check"></i>Programación preventiva
+                        <span class="tab-badge" id="contadorAlertas">0</span>
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <!-- ============ BANDEJA DE DAÑOS ============ -->
+                <div class="tab-pane fade show active" id="tabDanos" role="tabpanel">
+                    <div class="filters">
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroDanoVehiculo">Vehículo</label>
+                                <select id="filtroDanoVehiculo" class="form-select">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroDanoSituacion">Situación</label>
+                                <select id="filtroDanoSituacion" class="form-select">
+                                    <option value="pendiente">Pendientes</option>
+                                    <option value="">Todas</option>
+                                    <option value="en_orden">En orden</option>
+                                    <option value="atendido">Atendidos</option>
+                                    <option value="descartado">Descartados</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroDanoOrigen">Origen</label>
+                                <select id="filtroDanoOrigen" class="form-select">
+                                    <option value="">Ingresos y salidas</option>
+                                    <option value="entrada">Solo ingresos</option>
+                                    <option value="salida">Solo salidas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroDanoEstado">Tipo de daño</label>
+                                <select id="filtroDanoEstado" class="form-select">
+                                    <option value="">Todos</option>
+                                    <option value="Rayado">Rayado</option>
+                                    <option value="Abollado">Abollado</option>
+                                    <option value="Desportillado">Desportillado</option>
+                                    <option value="Roto">Roto</option>
+                                    <option value="Desgastado">Desgastado</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-triangle-exclamation"></i>
+                                Daños reportados
+                            </h3>
+                            <span class="cell-muted" id="resumenDanos"></span>
+                        </div>
+                        <table id="tablaDanos" class="display" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Vehículo</th>
+                                    <th>Pieza</th>
+                                    <th>Daño</th>
+                                    <th>Origen</th>
+                                    <th>Asesor</th>
+                                    <th>Situación</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ============ MANTENIMIENTOS ============ -->
+                <div class="tab-pane fade" id="tabMantenimientos" role="tabpanel">
+                    <div class="filters">
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroMantVehiculo">Vehículo</label>
+                                <select id="filtroMantVehiculo" class="form-select">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroMantTipo">Tipo</label>
+                                <select id="filtroMantTipo" class="form-select">
+                                    <option value="">Todos</option>
+                                    <option value="preventivo">Preventivo</option>
+                                    <option value="correctivo">Correctivo</option>
+                                    <option value="lavado">Lavado</option>
+                                    <option value="pintado">Pintado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroMantEstado">Estado</label>
+                                <select id="filtroMantEstado" class="form-select">
+                                    <option value="">Todos</option>
+                                    <option value="pendiente">Pendiente</option>
+                                    <option value="en_proceso">En proceso</option>
+                                    <option value="finalizado">Finalizado</option>
+                                    <option value="anulado">Anulado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroMantPrioridad">Prioridad</label>
+                                <select id="filtroMantPrioridad" class="form-select">
+                                    <option value="">Todas</option>
+                                    <option value="alta">Alta</option>
+                                    <option value="media">Media</option>
+                                    <option value="baja">Baja</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-screwdriver-wrench"></i>
+                                Órdenes de mantenimiento
+                            </h3>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="exportarReporteMantenimientos()">
+                                    <i class="fas fa-file-pdf me-2"></i>Exportar PDF
+                                </button>
+                                <button class="btn btn-new" onclick="abrirModalMantenimiento()">
+                                    <i class="fas fa-plus me-2"></i>Nuevo mantenimiento
+                                </button>
+                            </div>
+                        </div>
+                        <table id="tablaMantenimientos" class="display" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Orden</th>
+                                    <th>Vehículo</th>
+                                    <th>Tipo</th>
+                                    <th>Estado</th>
+                                    <th>Prioridad</th>
+                                    <th>Programada</th>
+                                    <th>Responsable</th>
+                                    <th>Insumos</th>
+                                    <th>Costo total</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ============ PROGRAMACIÓN PREVENTIVA ============ -->
+                <div class="tab-pane fade" id="tabPreventivos" role="tabpanel">
+                    <div class="resumen-preventivo" id="resumenPreventivo"></div>
+
+                    <div class="filters">
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroPrevVehiculo">Vehículo</label>
+                                <select id="filtroPrevVehiculo" class="form-select">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroPrevSituacion">Situación</label>
+                                <select id="filtroPrevSituacion" class="form-select">
+                                    <option value="">Todas</option>
+                                    <option value="vencido">Vencidos</option>
+                                    <option value="por_vencer">Por vencer</option>
+                                    <option value="al_dia">Al día</option>
+                                    <option value="sin_odometro">Sin odómetro</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroPrevRutina">Rutina</label>
+                                <select id="filtroPrevRutina" class="form-select">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="filtroPrevTipo">Tipo de vehículo</label>
+                                <select id="filtroPrevTipo" class="form-select">
+                                    <option value="">Todos</option>
+                                    <option value="auto">Autos</option>
+                                    <option value="moto">Motos</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-calendar-check"></i>
+                                Rutinas preventivas
+                            </h3>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="abrirModalLote()">
+                                    <i class="fas fa-layer-group me-2"></i>Aplicar rutina en lote
+                                </button>
+                                <button class="btn btn-new" onclick="abrirModalPlan()">
+                                    <i class="fas fa-plus me-2"></i>Nueva rutina
+                                </button>
+                            </div>
+                        </div>
+                        <table id="tablaPreventivos" class="display" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Vehículo</th>
+                                    <th>Rutina</th>
+                                    <th>Intervalo</th>
+                                    <th>Último servicio</th>
+                                    <th>Odómetro actual</th>
+                                    <th>Próximo a los</th>
+                                    <th>Faltan</th>
+                                    <th>Situación</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ MODAL DE MANTENIMIENTO ============ -->
+    <div class="modal fade modal-xl-form" id="modalMantenimiento" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModalMantenimiento">Nuevo mantenimiento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formMantenimiento">
+                        <input type="hidden" id="mantenimientoId">
+                        <input type="hidden" id="detalleOrigenId">
+                        <input type="hidden" id="planOrigenId">
+
+                        <div class="form-section">
+                            <div class="form-section-title">Datos generales</div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="campo-label" for="campoVehiculo">Vehículo *</label>
+                                    <select id="campoVehiculo" class="form-select" required>
+                                        <option value="">Seleccione un vehículo</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 mb-3">
+                                    <label class="campo-label" for="campoTipo">Tipo *</label>
+                                    <select id="campoTipo" class="form-select" required>
+                                        <option value="preventivo">Preventivo</option>
+                                        <option value="correctivo">Correctivo</option>
+                                        <option value="lavado">Lavado</option>
+                                        <option value="pintado">Pintado</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 mb-3">
+                                    <label class="campo-label" for="campoEstado">Estado</label>
+                                    <select id="campoEstado" class="form-select">
+                                        <option value="pendiente">Pendiente</option>
+                                        <option value="en_proceso">En proceso</option>
+                                        <option value="finalizado">Finalizado</option>
+                                        <option value="anulado">Anulado</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 mb-3">
+                                    <label class="campo-label" for="campoPrioridad">Prioridad</label>
+                                    <select id="campoPrioridad" class="form-select">
+                                        <option value="baja">Baja</option>
+                                        <option value="media" selected>Media</option>
+                                        <option value="alta">Alta</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 mb-3">
+                                    <label class="campo-label" for="campoOdometro">Odómetro (km)</label>
+                                    <input type="number" id="campoOdometro" class="form-control" min="0" placeholder="Ej: 45000">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <div class="form-section-title">Programación y responsables</div>
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <label class="campo-label" for="campoFechaProgramada">Fecha programada</label>
+                                    <input type="date" id="campoFechaProgramada" class="form-control">
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="campo-label" for="campoFechaInicio">Inicio del trabajo</label>
+                                    <input type="datetime-local" id="campoFechaInicio" class="form-control">
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="campo-label" for="campoFechaFin">Fin del trabajo</label>
+                                    <input type="datetime-local" id="campoFechaFin" class="form-control">
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="campo-label" for="campoResponsable">Responsable</label>
+                                    <input type="text" id="campoResponsable" class="form-control" placeholder="Técnico a cargo">
+                                </div>
+                                <div class="col-md-12 mb-3">
+                                    <label class="campo-label" for="campoTaller">Taller o proveedor</label>
+                                    <input type="text" id="campoTaller" class="form-control" placeholder="Taller interno, proveedor externo…">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <div class="form-section-title">Trabajo</div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="campo-label" for="campoDescripcion">Descripción / motivo</label>
+                                    <textarea id="campoDescripcion" class="form-control" placeholder="Qué se va a hacer y por qué"></textarea>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="campo-label" for="campoDiagnostico">Diagnóstico</label>
+                                    <textarea id="campoDiagnostico" class="form-control" placeholder="Hallazgos al revisar el vehículo"></textarea>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="campo-label" for="campoTrabajos">Trabajos realizados</label>
+                                    <textarea id="campoTrabajos" class="form-control" placeholder="Qué se ejecutó finalmente"></textarea>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="campo-label" for="campoObservaciones">Observaciones</label>
+                                    <textarea id="campoObservaciones" class="form-control" placeholder="Notas adicionales"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <div class="form-section-title">Insumos utilizados</div>
+                            <table id="tablaInsumos">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40%;">Descripción</th>
+                                        <th style="width: 12%;">Cantidad</th>
+                                        <th style="width: 12%;">Unidad</th>
+                                        <th style="width: 15%;">Costo unit.</th>
+                                        <th style="width: 15%; text-align: right;">Subtotal</th>
+                                        <th style="width: 6%;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cuerpoInsumos"></tbody>
+                            </table>
+                            <button type="button" class="btn-agregar-insumo" onclick="agregarFilaInsumo()">
+                                <i class="fas fa-plus me-2"></i>Agregar insumo
+                            </button>
+
+                            <div class="row mt-3">
+                                <div class="col-md-5">
+                                    <label class="campo-label" for="campoManoObra">Costo de mano de obra</label>
+                                    <input type="number" id="campoManoObra" class="form-control" min="0" step="0.01" value="0"
+                                           oninput="recalcularTotales()">
+                                </div>
+                                <div class="col-md-7">
+                                    <div class="totales">
+                                        <div class="linea">
+                                            <span>Insumos</span>
+                                            <span class="valor" id="totalInsumos">0.00</span>
+                                        </div>
+                                        <div class="linea">
+                                            <span>Mano de obra</span>
+                                            <span class="valor" id="totalManoObra">0.00</span>
+                                        </div>
+                                        <div class="linea total">
+                                            <span>Total</span>
+                                            <span class="valor" id="totalGeneral">0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarMantenimiento()">
+                        <i class="fas fa-save me-2"></i>Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ MODAL DE RUTINA PREVENTIVA ============ -->
+    <div class="modal fade" id="modalPlan" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModalPlan">Nueva rutina preventiva</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="planId">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="campo-label" for="planVehiculo">Vehículo *</label>
+                            <select id="planVehiculo" class="form-select">
+                                <option value="">Seleccione un vehículo</option>
+                            </select>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="campo-label" for="planNombre">Rutina *</label>
+                            <input type="text" id="planNombre" class="form-control" list="rutinasSugeridas"
+                                   placeholder="Ej: Cambio de aceite">
+                            <datalist id="rutinasSugeridas">
+                                <option value="Cambio de aceite"></option>
+                                <option value="Cambio de filtros"></option>
+                                <option value="Revisión de frenos"></option>
+                                <option value="Cambio de llantas"></option>
+                                <option value="Revisión de cadena"></option>
+                                <option value="Mantenimiento general"></option>
+                                <option value="Afinamiento"></option>
+                            </datalist>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="campo-label" for="planIntervalo">Cada cuántos km *</label>
+                            <input type="number" id="planIntervalo" class="form-control" min="1" step="500" value="5000">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="campo-label" for="planAviso">Avisar con cuántos km de antelación</label>
+                            <input type="number" id="planAviso" class="form-control" min="0" step="100" value="500">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="campo-label" for="planUltimoKm">Odómetro del último servicio</label>
+                            <input type="number" id="planUltimoKm" class="form-control" min="0"
+                                   placeholder="Dejar vacío si nunca se hizo">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="campo-label" for="planUltimaFecha">Fecha del último servicio</label>
+                            <input type="date" id="planUltimaFecha" class="form-control">
+                        </div>
+                        <div class="col-12 mb-2">
+                            <label class="campo-label" for="planObservaciones">Observaciones</label>
+                            <textarea id="planObservaciones" class="form-control"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="d-flex align-items-center gap-2" style="font-size: 0.8125rem;">
+                                <input type="checkbox" id="planActivo" checked>
+                                Rutina activa (entra en el control de alertas)
+                            </label>
+                        </div>
+                    </div>
+                    <p class="nota-modal">
+                        Si no hay servicio previo, el primer ciclo se cuenta desde el odómetro actual del vehículo.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarPlan()">
+                        <i class="fas fa-save me-2"></i>Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ MODAL DE APLICACIÓN EN LOTE ============ -->
+    <div class="modal fade" id="modalLote" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Aplicar rutina en lote</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="campo-label" for="loteNombre">Rutina *</label>
+                            <input type="text" id="loteNombre" class="form-control" list="rutinasSugeridas"
+                                   placeholder="Ej: Cambio de aceite">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="campo-label" for="loteIntervalo">Cada cuántos km *</label>
+                            <input type="number" id="loteIntervalo" class="form-control" min="1" step="500" value="5000">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="campo-label" for="loteAviso">Avisar con cuántos km antes</label>
+                            <input type="number" id="loteAviso" class="form-control" min="0" step="100" value="500">
+                        </div>
+                        <div class="col-12">
+                            <label class="campo-label">Aplicar a</label>
+                            <div class="opciones-lote">
+                                <label><input type="radio" name="loteAlcance" value="todos" checked>
+                                    Todos los vehículos <span id="conteoTodos" class="cell-muted"></span></label>
+                                <label><input type="radio" name="loteAlcance" value="moto">
+                                    Solo motos <span id="conteoMotos" class="cell-muted"></span></label>
+                                <label><input type="radio" name="loteAlcance" value="auto">
+                                    Solo autos <span id="conteoAutos" class="cell-muted"></span></label>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="nota-modal">
+                        Los vehículos que ya tengan una rutina con ese nombre no se duplican:
+                        se les actualiza el intervalo.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="aplicarLote()">
+                        <i class="fas fa-layer-group me-2"></i>Aplicar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ MODAL DE REGISTRO DE SERVICIO ============ -->
+    <div class="modal fade" id="modalServicio" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModalServicio">Registrar servicio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="servicioPlanId">
+                    <p id="servicioDetalle" class="nota-modal mb-3"></p>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="campo-label" for="servicioOdometro">Odómetro del servicio *</label>
+                            <input type="number" id="servicioOdometro" class="form-control" min="0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="campo-label" for="servicioFecha">Fecha</label>
+                            <input type="date" id="servicioFecha" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarServicio()">
+                        <i class="fas fa-check me-2"></i>Registrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ MODAL DE FOTO DEL DAÑO ============ -->
+    <div class="modal fade" id="modalFoto" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModalFoto">Foto del daño</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div id="cuerpoModalFoto"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // Estado de la página
+        // ============================================================
+        let vehiculos = [];
+        let danos = [];
+        let mantenimientos = [];
+        let tablaDanos = null;
+        let tablaMantenimientos = null;
+
+        const ETIQUETAS = {
+            pendiente: 'Pendiente',
+            en_orden: 'En orden',
+            atendido: 'Atendido',
+            descartado: 'Descartado',
+            en_proceso: 'En proceso',
+            finalizado: 'Finalizado',
+            anulado: 'Anulado',
+            preventivo: 'Preventivo',
+            correctivo: 'Correctivo',
+            lavado: 'Lavado',
+            pintado: 'Pintado',
+            alta: 'Alta',
+            media: 'Media',
+            baja: 'Baja',
+            entrada: 'Ingreso',
+            salida: 'Salida',
+            entrada_mantenimiento: 'Ingreso por mantenimiento',
+            salida_mantenimiento: 'Salida por mantenimiento',
+            entrada_visita: 'Ingreso de visita',
+            salida_visita: 'Salida de visita',
+            vencido: 'Vencido',
+            por_vencer: 'Por vencer',
+            al_dia: 'Al día',
+            sin_odometro: 'Sin odómetro'
+        };
+
+        const ICONOS = {
+            pendiente: 'fa-clock',
+            en_orden: 'fa-screwdriver-wrench',
+            atendido: 'fa-check',
+            descartado: 'fa-ban',
+            en_proceso: 'fa-spinner',
+            finalizado: 'fa-check',
+            anulado: 'fa-ban',
+            preventivo: 'fa-shield-halved',
+            correctivo: 'fa-wrench',
+            lavado: 'fa-soap',
+            pintado: 'fa-spray-can',
+            entrada: 'fa-arrow-right-to-bracket',
+            salida: 'fa-arrow-right-from-bracket',
+            entrada_mantenimiento: 'fa-arrow-right-to-bracket',
+            salida_mantenimiento: 'fa-arrow-right-from-bracket',
+            entrada_visita: 'fa-arrow-right-to-bracket',
+            salida_visita: 'fa-arrow-right-from-bracket',
+            vencido: 'fa-circle-exclamation',
+            por_vencer: 'fa-triangle-exclamation',
+            al_dia: 'fa-circle-check',
+            sin_odometro: 'fa-question'
+        };
+
+        function pill(valor) {
+            if (!valor) return '<span class="cell-muted">—</span>';
+            const icono = ICONOS[valor] ? `<i class="fas ${ICONOS[valor]}"></i>` : '';
+            return `<span class="pill pill-${valor}">${icono}${ETIQUETAS[valor] || valor}</span>`;
+        }
+
+        function escapar(texto) {
+            return String(texto == null ? '' : texto)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function formatearFecha(valor, conHora) {
+            if (!valor) return '—';
+
+            // Una fecha suelta (YYYY-MM-DD) la interpreta el navegador como UTC
+            // y en Perú se mostraría un día antes. Se formatea sin pasar por Date.
+            const soloFecha = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (soloFecha) return `${soloFecha[3]}/${soloFecha[2]}/${soloFecha[1]}`;
+
+            const fecha = new Date(valor);
+            if (isNaN(fecha.getTime())) return '—';
+            const dia = fecha.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            if (!conHora) return dia;
+            return dia + ' <span class="cell-muted">' +
+                fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) + '</span>';
+        }
+
+        function formatearMonto(valor) {
+            return (Number(valor) || 0).toLocaleString('es-PE', {
+                minimumFractionDigits: 2, maximumFractionDigits: 2
+            });
+        }
+
+        // Los inputs datetime-local trabajan en hora local; la base guarda ISO
+        function isoADatetimeLocal(iso) {
+            if (!iso) return '';
+            const fecha = new Date(iso);
+            if (isNaN(fecha.getTime())) return '';
+            const desfase = fecha.getTimezoneOffset() * 60000;
+            return new Date(fecha.getTime() - desfase).toISOString().slice(0, 16);
+        }
+
+        function datetimeLocalAIso(valor) {
+            if (!valor) return null;
+            const fecha = new Date(valor);
+            return isNaN(fecha.getTime()) ? null : fecha.toISOString();
+        }
+
+        // ============================================================
+        // Carga de datos
+        // ============================================================
+        async function cargarTodo() {
+            try {
+                const respVehiculos = await fetch('/api/vehiculos');
+                vehiculos = respVehiculos.ok ? await respVehiculos.json() : [];
+                poblarSelectoresVehiculo();
+            } catch (error) {
+                console.error('Error al cargar vehículos:', error);
+            }
+
+            await Promise.all([cargarDanos(), cargarMantenimientos(), cargarPreventivos()]);
+        }
+
+        function poblarSelectoresVehiculo() {
+            const opciones = vehiculos
+                .slice()
+                .sort((a, b) => String(a.placa).localeCompare(String(b.placa)))
+                .map(v => `<option value="${v.id}">${escapar(v.placa)} — ${escapar(v.marca)} ${escapar(v.modelo)}</option>`)
+                .join('');
+
+            document.getElementById('filtroDanoVehiculo').innerHTML =
+                '<option value="">Todos</option>' + opciones;
+            document.getElementById('filtroMantVehiculo').innerHTML =
+                '<option value="">Todos</option>' + opciones;
+            document.getElementById('filtroPrevVehiculo').innerHTML =
+                '<option value="">Todos</option>' + opciones;
+            document.getElementById('campoVehiculo').innerHTML =
+                '<option value="">Seleccione un vehículo</option>' + opciones;
+            document.getElementById('planVehiculo').innerHTML =
+                '<option value="">Seleccione un vehículo</option>' + opciones;
+        }
+
+        // El backend responde con modulo_listo=false mientras falten las tablas:
+        // la pantalla sigue siendo utilizable en lectura, con el aviso arriba.
+        function marcarEstadoModulo(listo) {
+            document.getElementById('avisoEsquema').style.display = listo ? 'none' : 'block';
+        }
+
+        async function cargarDanos() {
+            try {
+                const respuesta = await fetch('/api/danos');
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || `Error HTTP ${respuesta.status}`);
+                }
+
+                const datos = await respuesta.json();
+                danos = datos.danos || [];
+                marcarEstadoModulo(datos.modulo_listo !== false);
+                renderDanos();
+
+            } catch (error) {
+                console.error('Error al cargar daños:', error);
+                Swal.fire({ icon: 'error', title: 'Error al cargar los daños', text: error.message });
+            }
+        }
+
+        async function cargarMantenimientos() {
+            try {
+                const respuesta = await fetch('/api/mantenimientos');
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || `Error HTTP ${respuesta.status}`);
+                }
+
+                const datos = await respuesta.json();
+                mantenimientos = datos.mantenimientos || [];
+                if (datos.modulo_listo === false) marcarEstadoModulo(false);
+                renderMantenimientos();
+
+            } catch (error) {
+                console.error('Error al cargar mantenimientos:', error);
+                Swal.fire({ icon: 'error', title: 'Error al cargar los mantenimientos', text: error.message });
+            }
+        }
+
+        // ============================================================
+        // Bandeja de daños
+        // ============================================================
+        function danosFiltrados() {
+            const vehiculo = document.getElementById('filtroDanoVehiculo').value;
+            const situacion = document.getElementById('filtroDanoSituacion').value;
+            const origen = document.getElementById('filtroDanoOrigen').value;
+            const estado = document.getElementById('filtroDanoEstado').value;
+
+            return danos.filter(d => {
+                if (vehiculo && String(d.vehiculo_id) !== vehiculo) return false;
+                if (situacion && d.situacion !== situacion) return false;
+                if (origen && d.tipo_entrada !== origen) return false;
+                if (estado && !String(d.estado || '').toLowerCase().includes(estado.toLowerCase())) return false;
+                return true;
+            });
+        }
+
+        function renderDanos() {
+            const filas = danosFiltrados();
+
+            const pendientes = danos.filter(d => d.situacion === 'pendiente').length;
+            document.getElementById('contadorPendientes').textContent = pendientes;
+            document.getElementById('resumenDanos').textContent =
+                `${filas.length} de ${danos.length} daños · ${pendientes} pendientes`;
+
+            const datos = filas.map(d => [
+                d.fecha,
+                d,
+                d,
+                d,
+                d.tipo_entrada,
+                d.asesor_nombre || 'Desconocido',
+                d,
+                d
+            ]);
+
+            if (tablaDanos) {
+                tablaDanos.clear().rows.add(datos).draw();
+                return;
+            }
+
+            tablaDanos = $('#tablaDanos').DataTable({
+                data: datos,
+                pageLength: 25,
+                order: [[0, 'desc']],
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+                columnDefs: [{ orderable: false, targets: [7] }],
+                columns: [
+                    {
+                        render: function (data, type) {
+                            if (type !== 'display') return data || '';
+                            return `<span class="fecha-cell">${formatearFecha(data, true)}</span>`;
+                        }
+                    },
+                    {
+                        render: function (d, type) {
+                            if (type !== 'display') return d.vehiculo_placa;
+                            return `<span class="placa-cell">${escapar(d.vehiculo_placa)}</span>` +
+                                `<div class="cell-muted">${escapar(d.vehiculo_marca)} ${escapar(d.vehiculo_modelo)}</div>`;
+                        }
+                    },
+                    {
+                        render: function (d, type) {
+                            if (type !== 'display') return d.pieza;
+                            const obs = d.observaciones && d.observaciones !== 'Sin observaciones'
+                                ? `<div class="cell-muted">${escapar(d.observaciones)}</div>` : '';
+                            return `<span class="pieza-cell">${escapar(d.pieza)}</span>${obs}`;
+                        }
+                    },
+                    {
+                        render: function (d, type) {
+                            if (type !== 'display') return d.estado;
+                            return String(d.estado || '').split(',')
+                                .map(e => `<span class="pill pill-pendiente">${escapar(e.trim())}</span>`)
+                                .join(' ');
+                        }
+                    },
+                    {
+                        render: function (data, type) {
+                            if (type !== 'display') return data || '';
+                            return pill(data);
+                        }
+                    },
+                    {
+                        render: function (data) {
+                            return `<span class="cell-muted">${escapar(data)}</span>`;
+                        }
+                    },
+                    {
+                        render: function (d, type) {
+                            if (type !== 'display') return d.situacion;
+                            const orden = d.mantenimiento_id
+                                ? `<div class="orden-cell">Orden #${d.mantenimiento_id}</div>` : '';
+                            return pill(d.situacion) + orden;
+                        }
+                    },
+                    {
+                        render: function (d) {
+                            const botones = [];
+
+                            if (d.tiene_foto) {
+                                botones.push(`<button class="btn btn-sm btn-outline-secondary" title="Ver foto" ` +
+                                    `onclick="verFotoDano(${d.detalle_id})"><i class="fas fa-image"></i></button>`);
+                            }
+
+                            if (d.situacion === 'pendiente' || d.situacion === 'descartado') {
+                                botones.push(`<button class="btn btn-sm btn-outline-secondary" title="Generar orden de mantenimiento" ` +
+                                    `onclick="generarOrdenDesdeDano(${d.detalle_id})"><i class="fas fa-screwdriver-wrench"></i></button>`);
+                            }
+
+                            if (d.situacion !== 'atendido') {
+                                botones.push(`<button class="btn btn-sm btn-outline-secondary" title="Marcar como atendido" ` +
+                                    `onclick="cambiarSituacionDano(${d.detalle_id}, 'atendido')"><i class="fas fa-check"></i></button>`);
+                            }
+
+                            if (d.situacion === 'pendiente') {
+                                botones.push(`<button class="btn btn-sm btn-outline-secondary" title="Descartar" ` +
+                                    `onclick="cambiarSituacionDano(${d.detalle_id}, 'descartado')"><i class="fas fa-ban"></i></button>`);
+                            }
+
+                            if (d.situacion === 'atendido' || d.situacion === 'descartado') {
+                                botones.push(`<button class="btn btn-sm btn-outline-secondary" title="Devolver a pendientes" ` +
+                                    `onclick="cambiarSituacionDano(${d.detalle_id}, 'pendiente')"><i class="fas fa-rotate-left"></i></button>`);
+                            }
+
+                            return `<div class="action-buttons">${botones.join('')}</div>`;
+                        }
+                    }
+                ]
+            });
+        }
+
+        async function verFotoDano(detalleId) {
+            try {
+                const respuesta = await fetch(`/api/danos/${detalleId}/foto`);
+                if (!respuesta.ok) throw new Error('No se pudo obtener la foto');
+
+                const detalle = await respuesta.json();
+                document.getElementById('tituloModalFoto').textContent =
+                    `${detalle.pieza || 'Pieza'} — ${detalle.estado || ''}`;
+
+                document.getElementById('cuerpoModalFoto').innerHTML = detalle.foto
+                    ? `<img src="${detalle.foto}" style="max-width:100%; max-height:70vh; border-radius:8px;">`
+                    : '<p class="cell-muted">Este daño no tiene foto registrada.</p>';
+
+                new bootstrap.Modal(document.getElementById('modalFoto')).show();
+
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            }
+        }
+
+        async function cambiarSituacionDano(detalleId, situacion) {
+            try {
+                const respuesta = await fetch(`/api/danos/${detalleId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ situacion })
+                });
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || 'No se pudo actualizar el daño');
+                }
+
+                const dano = danos.find(d => d.detalle_id === detalleId);
+                if (dano) {
+                    dano.situacion = situacion;
+                    if (situacion === 'pendiente') dano.mantenimiento_id = null;
+                }
+
+                renderDanos();
+
+                Swal.fire({
+                    icon: 'success', title: 'Actualizado', text: `Daño marcado como ${ETIQUETAS[situacion].toLowerCase()}`,
+                    timer: 1400, showConfirmButton: false, toast: true, position: 'top-end'
+                });
+
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            }
+        }
+
+        // Abre el formulario ya precargado con el vehículo y la pieza dañada
+        function generarOrdenDesdeDano(detalleId) {
+            const dano = danos.find(d => d.detalle_id === detalleId);
+            if (!dano) return;
+
+            abrirModalMantenimiento();
+
+            document.getElementById('detalleOrigenId').value = detalleId;
+            document.getElementById('campoVehiculo').value = dano.vehiculo_id || '';
+            document.getElementById('campoTipo').value = 'correctivo';
+            document.getElementById('campoOdometro').value = dano.odometro || '';
+            document.getElementById('campoDescripcion').value =
+                `${dano.pieza}: ${dano.estado}` +
+                (dano.observaciones && dano.observaciones !== 'Sin observaciones' ? ` — ${dano.observaciones}` : '') +
+                `\n(Reportado en la inspección #${dano.inspeccion_id} del ${formatearFecha(dano.fecha)})`;
+
+            document.getElementById('tituloModalMantenimiento').textContent =
+                `Nueva orden por daño — ${dano.vehiculo_placa}`;
+        }
+
+        // ============================================================
+        // Mantenimientos
+        // ============================================================
+        function mantenimientosFiltrados() {
+            const vehiculo = document.getElementById('filtroMantVehiculo').value;
+            const tipo = document.getElementById('filtroMantTipo').value;
+            const estado = document.getElementById('filtroMantEstado').value;
+            const prioridad = document.getElementById('filtroMantPrioridad').value;
+
+            return mantenimientos.filter(m => {
+                if (vehiculo && String(m.vehiculo_id) !== vehiculo) return false;
+                if (tipo && m.tipo !== tipo) return false;
+                if (estado && m.estado !== estado) return false;
+                if (prioridad && m.prioridad !== prioridad) return false;
+                return true;
+            });
+        }
+
+        function renderMantenimientos() {
+            const datos = mantenimientosFiltrados().map(m => [m, m, m, m, m, m, m, m, m, m]);
+
+            if (tablaMantenimientos) {
+                tablaMantenimientos.clear().rows.add(datos).draw();
+                return;
+            }
+
+            tablaMantenimientos = $('#tablaMantenimientos').DataTable({
+                data: datos,
+                pageLength: 25,
+                order: [[0, 'desc']],
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+                columnDefs: [{ orderable: false, targets: [9] }],
+                columns: [
+                    {
+                        render: function (m, type) {
+                            if (type !== 'display') return m.id;
+                            return `<span class="orden-cell">#${m.id}</span>`;
+                        }
+                    },
+                    {
+                        render: function (m, type) {
+                            if (type !== 'display') return m.vehiculo_placa;
+                            return `<span class="placa-cell">${escapar(m.vehiculo_placa)}</span>` +
+                                `<div class="cell-muted">${escapar(m.vehiculo_marca)} ${escapar(m.vehiculo_modelo)}</div>`;
+                        }
+                    },
+                    { render: function (m, type) { return type === 'display' ? pill(m.tipo) : m.tipo; } },
+                    { render: function (m, type) { return type === 'display' ? pill(m.estado) : m.estado; } },
+                    { render: function (m, type) { return type === 'display' ? pill(m.prioridad) : m.prioridad; } },
+                    {
+                        render: function (m, type) {
+                            if (type !== 'display') return m.fecha_programada || '';
+                            return `<span class="fecha-cell">${formatearFecha(m.fecha_programada)}</span>`;
+                        }
+                    },
+                    {
+                        render: function (m, type) {
+                            if (type !== 'display') return m.responsable || '';
+                            return m.responsable
+                                ? escapar(m.responsable)
+                                : '<span class="cell-muted">—</span>';
+                        }
+                    },
+                    {
+                        render: function (m, type) {
+                            if (type !== 'display') return m.total_items || 0;
+                            return `<span class="badge bg-info">${m.total_items || 0}</span>`;
+                        }
+                    },
+                    {
+                        render: function (m, type) {
+                            if (type !== 'display') return m.costo_total || 0;
+                            return `<span class="costo-cell">${formatearMonto(m.costo_total)}</span>`;
+                        }
+                    },
+                    {
+                        render: function (m) {
+                            return '<div class="action-buttons">' +
+                                `<button class="btn btn-sm btn-outline-secondary" title="Ver y editar" ` +
+                                `onclick="abrirModalMantenimiento(${m.id})"><i class="fas fa-edit"></i></button>` +
+                                `<button class="btn btn-sm btn-outline-secondary" title="Exportar orden en PDF" ` +
+                                `onclick="exportarOrdenPdf(${m.id})"><i class="fas fa-file-pdf"></i></button>` +
+                                `<button class="btn btn-sm btn-outline-secondary" title="Eliminar" ` +
+                                `onclick="eliminarMantenimiento(${m.id}, '${escapar(m.vehiculo_placa)}')"><i class="fas fa-trash"></i></button>` +
+                                '</div>';
+                        }
+                    }
+                ]
+            });
+        }
+
+        // ============================================================
+        // Reporte de mantenimientos en PDF
+        // ============================================================
+        const PDF_CIAN = [0, 151, 198];
+        const PDF_GRIS = [108, 117, 125];
+
+        function jsPdfDisponible() {
+            if (window.jspdf && window.jspdf.jsPDF) return true;
+
+            Swal.fire({
+                icon: 'error',
+                title: 'No se pudo generar el PDF',
+                text: 'La librería de exportación no se cargó. Revise la conexión e intente de nuevo.'
+            });
+            return false;
+        }
+
+        function textoSeleccionado(idSelect) {
+            const select = document.getElementById(idSelect);
+            if (!select || !select.value) return null;
+            return select.options[select.selectedIndex].text;
+        }
+
+        // Texto legible de los filtros activos, para dejar constancia en el
+        // reporte de qué recorte de datos se está viendo.
+        function descripcionFiltros() {
+            const partes = [
+                ['Vehículo', textoSeleccionado('filtroMantVehiculo')],
+                ['Tipo', textoSeleccionado('filtroMantTipo')],
+                ['Estado', textoSeleccionado('filtroMantEstado')],
+                ['Prioridad', textoSeleccionado('filtroMantPrioridad')]
+            ].filter(([, valor]) => valor);
+
+            return partes.length === 0
+                ? 'Sin filtros: todas las órdenes'
+                : partes.map(([etiqueta, valor]) => `${etiqueta}: ${valor}`).join('   ·   ');
+        }
+
+        function fechaEmision() {
+            return new Date().toLocaleString('es-PE', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        // Fecha sin marcas HTML: formatearFecha las incluye para la tabla
+        function fechaPlana(valor) {
+            return String(formatearFecha(valor)).replace(/<[^>]*>/g, '').trim();
+        }
+
+        function encabezadoPdf(doc, titulo, subtitulo) {
+            const ancho = doc.internal.pageSize.getWidth();
+
+            doc.setFillColor(...PDF_CIAN);
+            doc.rect(0, 0, ancho, 22, 'F');
+
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(13);
+            doc.text(titulo, 14, 10);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.text(subtitulo, 14, 16);
+            doc.text(`Emitido: ${fechaEmision()}`, ancho - 14, 16, { align: 'right' });
+
+            doc.setTextColor(33, 37, 41);
+        }
+
+        function pieDePagina(doc) {
+            const total = doc.internal.getNumberOfPages();
+            const ancho = doc.internal.pageSize.getWidth();
+            const alto = doc.internal.pageSize.getHeight();
+
+            for (let pagina = 1; pagina <= total; pagina++) {
+                doc.setPage(pagina);
+                doc.setFontSize(8);
+                doc.setTextColor(...PDF_GRIS);
+                doc.text('Pacífico Asiste · Maestranza', 14, alto - 8);
+                doc.text(`Página ${pagina} de ${total}`, ancho - 14, alto - 8, { align: 'right' });
+            }
+        }
+
+        // Listado filtrado, con el resumen de costos al final
+        function exportarReporteMantenimientos() {
+            if (!jsPdfDisponible()) return;
+
+            const filas = mantenimientosFiltrados();
+
+            if (filas.length === 0) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Sin órdenes que exportar',
+                    text: 'Los filtros activos no devuelven ninguna orden de mantenimiento.'
+                });
+                return;
+            }
+
+            const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+            encabezadoPdf(doc, 'Reporte de mantenimientos', descripcionFiltros());
+
+            doc.autoTable({
+                startY: 28,
+                head: [['Orden', 'Vehículo', 'Tipo', 'Estado', 'Prioridad', 'Programada',
+                        'Responsable', 'Taller', 'Insumos', 'Mano de obra', 'Costo total']],
+                body: filas.map(m => [
+                    `#${m.id}`,
+                    `${m.vehiculo_placa}\n${m.vehiculo_marca} ${m.vehiculo_modelo}`.trim(),
+                    ETIQUETAS[m.tipo] || m.tipo || '—',
+                    ETIQUETAS[m.estado] || m.estado || '—',
+                    ETIQUETAS[m.prioridad] || m.prioridad || '—',
+                    fechaPlana(m.fecha_programada),
+                    m.responsable || '—',
+                    m.taller || '—',
+                    String(m.total_items || 0),
+                    formatearMonto(m.costo_mano_obra),
+                    formatearMonto(m.costo_total)
+                ]),
+                styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+                headStyles: { fillColor: PDF_CIAN, textColor: 255, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [246, 249, 251] },
+                columnStyles: {
+                    0: { cellWidth: 16 },
+                    8: { halign: 'center', cellWidth: 16 },
+                    9: { halign: 'right', cellWidth: 24 },
+                    10: { halign: 'right', cellWidth: 24, fontStyle: 'bold' }
+                },
+                margin: { left: 14, right: 14 }
+            });
+
+            // Resumen: totales por estado y costo acumulado del recorte
+            const porEstado = filas.reduce((acc, m) => {
+                const clave = m.estado || 'sin_estado';
+                acc[clave] = (acc[clave] || 0) + 1;
+                return acc;
+            }, {});
+
+            const totalInsumos = filas.reduce((suma, m) => suma + (Number(m.total_insumos) || 0), 0);
+            const totalManoObra = filas.reduce((suma, m) => suma + (Number(m.costo_mano_obra) || 0), 0);
+            const totalGeneral = filas.reduce((suma, m) => suma + (Number(m.costo_total) || 0), 0);
+
+            doc.autoTable({
+                startY: doc.lastAutoTable.finalY + 6,
+                head: [['Resumen', '']],
+                body: [
+                    ['Órdenes incluidas', String(filas.length)],
+                    ['Por estado', Object.entries(porEstado)
+                        .map(([estado, cantidad]) => `${ETIQUETAS[estado] || estado}: ${cantidad}`)
+                        .join('   ·   ')],
+                    ['Total en insumos', formatearMonto(totalInsumos)],
+                    ['Total en mano de obra', formatearMonto(totalManoObra)],
+                    ['Costo total acumulado', formatearMonto(totalGeneral)]
+                ],
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [246, 249, 251], textColor: 60, fontStyle: 'bold' },
+                columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' } },
+                margin: { left: 14, right: 14 },
+                tableWidth: 160
+            });
+
+            pieDePagina(doc);
+
+            const marca = new Date().toISOString().slice(0, 10);
+            doc.save(`reporte-mantenimientos-${marca}.pdf`);
+        }
+
+        // Orden de trabajo completa, con insumos y costos
+        async function exportarOrdenPdf(id) {
+            if (!jsPdfDisponible()) return;
+
+            try {
+                const respuesta = await fetch(`/api/mantenimientos/${id}`);
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || `Error HTTP ${respuesta.status}`);
+                }
+
+                const orden = await respuesta.json();
+                const doc = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+                encabezadoPdf(doc, `Orden de mantenimiento #${orden.id}`,
+                    `${orden.vehiculo_placa} · ${orden.vehiculo_marca} ${orden.vehiculo_modelo}`.trim());
+
+                doc.autoTable({
+                    startY: 28,
+                    body: [
+                        ['Tipo', ETIQUETAS[orden.tipo] || orden.tipo || '—',
+                         'Estado', ETIQUETAS[orden.estado] || orden.estado || '—'],
+                        ['Prioridad', ETIQUETAS[orden.prioridad] || orden.prioridad || '—',
+                         'Odómetro', orden.odometro != null ? `${Number(orden.odometro).toLocaleString('es-PE')} km` : '—'],
+                        ['Programada', fechaPlana(orden.fecha_programada),
+                         'Inicio', fechaPlana(orden.fecha_inicio)],
+                        ['Fin', fechaPlana(orden.fecha_fin),
+                         'Responsable', orden.responsable || '—'],
+                        ['Taller', orden.taller || '—',
+                         'Daños vinculados', String((orden.danos_vinculados || []).length)]
+                    ],
+                    theme: 'grid',
+                    styles: { fontSize: 9, cellPadding: 2.5 },
+                    columnStyles: {
+                        0: { cellWidth: 32, fontStyle: 'bold', fillColor: [246, 249, 251] },
+                        1: { cellWidth: 60 },
+                        2: { cellWidth: 32, fontStyle: 'bold', fillColor: [246, 249, 251] },
+                        3: { cellWidth: 58 }
+                    },
+                    margin: { left: 14, right: 14 }
+                });
+
+                // Los textos largos van como filas de una sola columna
+                const textos = [
+                    ['Descripción', orden.descripcion],
+                    ['Diagnóstico', orden.diagnostico],
+                    ['Trabajos realizados', orden.trabajos_realizados],
+                    ['Observaciones', orden.observaciones]
+                ].filter(([, valor]) => String(valor || '').trim() !== '');
+
+                if (textos.length > 0) {
+                    doc.autoTable({
+                        startY: doc.lastAutoTable.finalY + 5,
+                        body: textos,
+                        theme: 'grid',
+                        styles: { fontSize: 9, cellPadding: 2.5, overflow: 'linebreak' },
+                        columnStyles: {
+                            0: { cellWidth: 40, fontStyle: 'bold', fillColor: [246, 249, 251] }
+                        },
+                        margin: { left: 14, right: 14 }
+                    });
+                }
+
+                const insumos = orden.insumos || [];
+
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 5,
+                    head: [['Insumo', 'Cantidad', 'Unidad', 'Costo unitario', 'Subtotal']],
+                    body: insumos.length > 0
+                        ? insumos.map(i => [
+                            i.descripcion,
+                            String(i.cantidad),
+                            i.unidad || 'und',
+                            formatearMonto(i.costo_unitario),
+                            formatearMonto((Number(i.cantidad) || 0) * (Number(i.costo_unitario) || 0))
+                        ])
+                        : [['Sin insumos registrados', '', '', '', '']],
+                    styles: { fontSize: 9, cellPadding: 2.5 },
+                    headStyles: { fillColor: PDF_CIAN, textColor: 255, fontStyle: 'bold' },
+                    columnStyles: {
+                        1: { halign: 'right', cellWidth: 22 },
+                        2: { cellWidth: 20 },
+                        3: { halign: 'right', cellWidth: 30 },
+                        4: { halign: 'right', cellWidth: 30 }
+                    },
+                    margin: { left: 14, right: 14 }
+                });
+
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 4,
+                    body: [
+                        ['Total en insumos', formatearMonto(orden.total_insumos)],
+                        ['Mano de obra', formatearMonto(orden.costo_mano_obra)],
+                        ['Costo total', formatearMonto(orden.costo_total)]
+                    ],
+                    theme: 'grid',
+                    styles: { fontSize: 9, cellPadding: 2.5, halign: 'right' },
+                    columnStyles: {
+                        0: { cellWidth: 45, fontStyle: 'bold', halign: 'left', fillColor: [246, 249, 251] },
+                        1: { cellWidth: 35 }
+                    },
+                    margin: { left: 102, right: 14 }
+                });
+
+                pieDePagina(doc);
+                doc.save(`orden-mantenimiento-${orden.id}.pdf`);
+
+            } catch (error) {
+                console.error('Error al exportar la orden:', error);
+                Swal.fire({ icon: 'error', title: 'No se pudo exportar la orden', text: error.message });
+            }
+        }
+
+        // ---------- Formulario ----------
+        function limpiarFormulario() {
+            document.getElementById('formMantenimiento').reset();
+            document.getElementById('mantenimientoId').value = '';
+            document.getElementById('detalleOrigenId').value = '';
+            document.getElementById('planOrigenId').value = '';
+            document.getElementById('campoPrioridad').value = 'media';
+            document.getElementById('campoEstado').value = 'pendiente';
+            document.getElementById('campoManoObra').value = '0';
+            document.getElementById('cuerpoInsumos').innerHTML = '';
+            agregarFilaInsumo();
+            recalcularTotales();
+        }
+
+        function agregarFilaInsumo(insumo) {
+            const fila = document.createElement('tr');
+            fila.innerHTML =
+                `<td><input type="text" class="insumo-descripcion" placeholder="Ej: Aceite 15W40" value="${escapar(insumo?.descripcion)}"></td>` +
+                `<td><input type="number" class="num insumo-cantidad" min="0" step="0.01" value="${insumo ? insumo.cantidad : 1}" oninput="recalcularTotales()"></td>` +
+                `<td><input type="text" class="insumo-unidad" placeholder="und" value="${escapar(insumo?.unidad || 'und')}"></td>` +
+                `<td><input type="number" class="num insumo-costo" min="0" step="0.01" value="${insumo ? insumo.costo_unitario : 0}" oninput="recalcularTotales()"></td>` +
+                `<td class="subtotal-celda">0.00</td>` +
+                `<td><button type="button" class="btn-quitar-insumo" title="Quitar"><i class="fas fa-times"></i></button></td>`;
+
+            fila.querySelector('.btn-quitar-insumo').addEventListener('click', function () {
+                fila.remove();
+                recalcularTotales();
+            });
+
+            document.getElementById('cuerpoInsumos').appendChild(fila);
+            recalcularTotales();
+        }
+
+        function recalcularTotales() {
+            let totalInsumos = 0;
+
+            document.querySelectorAll('#cuerpoInsumos tr').forEach(fila => {
+                const cantidad = parseFloat(fila.querySelector('.insumo-cantidad').value) || 0;
+                const costo = parseFloat(fila.querySelector('.insumo-costo').value) || 0;
+                const subtotal = cantidad * costo;
+                totalInsumos += subtotal;
+                fila.querySelector('.subtotal-celda').textContent = formatearMonto(subtotal);
+            });
+
+            const manoObra = parseFloat(document.getElementById('campoManoObra').value) || 0;
+
+            document.getElementById('totalInsumos').textContent = formatearMonto(totalInsumos);
+            document.getElementById('totalManoObra').textContent = formatearMonto(manoObra);
+            document.getElementById('totalGeneral').textContent = formatearMonto(totalInsumos + manoObra);
+        }
+
+        function leerInsumos() {
+            return Array.from(document.querySelectorAll('#cuerpoInsumos tr')).map(fila => ({
+                descripcion: fila.querySelector('.insumo-descripcion').value,
+                cantidad: fila.querySelector('.insumo-cantidad').value,
+                unidad: fila.querySelector('.insumo-unidad').value,
+                costo_unitario: fila.querySelector('.insumo-costo').value
+            })).filter(i => i.descripcion.trim() !== '');
+        }
+
+        async function abrirModalMantenimiento(id) {
+            limpiarFormulario();
+            const modal = new bootstrap.Modal(document.getElementById('modalMantenimiento'));
+
+            if (!id) {
+                document.getElementById('tituloModalMantenimiento').textContent = 'Nuevo mantenimiento';
+                modal.show();
+                return;
+            }
+
+            try {
+                const respuesta = await fetch(`/api/mantenimientos/${id}`);
+                if (!respuesta.ok) throw new Error('No se pudo cargar el mantenimiento');
+
+                const m = await respuesta.json();
+
+                document.getElementById('tituloModalMantenimiento').textContent =
+                    `Mantenimiento #${m.id} — ${m.vehiculo_placa}`;
+                document.getElementById('mantenimientoId').value = m.id;
+                document.getElementById('campoVehiculo').value = m.vehiculo_id || '';
+                document.getElementById('campoTipo').value = m.tipo || 'preventivo';
+                document.getElementById('campoEstado').value = m.estado || 'pendiente';
+                document.getElementById('campoPrioridad').value = m.prioridad || 'media';
+                document.getElementById('campoOdometro').value = m.odometro || '';
+                document.getElementById('campoFechaProgramada').value = m.fecha_programada || '';
+                document.getElementById('campoFechaInicio').value = isoADatetimeLocal(m.fecha_inicio);
+                document.getElementById('campoFechaFin').value = isoADatetimeLocal(m.fecha_fin);
+                document.getElementById('campoResponsable').value = m.responsable || '';
+                document.getElementById('campoTaller').value = m.taller || '';
+                document.getElementById('campoDescripcion').value = m.descripcion || '';
+                document.getElementById('campoDiagnostico').value = m.diagnostico || '';
+                document.getElementById('campoTrabajos').value = m.trabajos_realizados || '';
+                document.getElementById('campoObservaciones').value = m.observaciones || '';
+                document.getElementById('campoManoObra').value = m.costo_mano_obra || 0;
+
+                document.getElementById('cuerpoInsumos').innerHTML = '';
+                if (m.insumos && m.insumos.length > 0) {
+                    m.insumos.forEach(agregarFilaInsumo);
+                } else {
+                    agregarFilaInsumo();
+                }
+
+                recalcularTotales();
+                modal.show();
+
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            }
+        }
+
+        async function guardarMantenimiento() {
+            const id = document.getElementById('mantenimientoId').value;
+            const vehiculoId = document.getElementById('campoVehiculo').value;
+
+            if (!vehiculoId) {
+                Swal.fire({ icon: 'warning', title: 'Falta el vehículo', text: 'Seleccione el vehículo del mantenimiento' });
+                return;
+            }
+
+            const datos = {
+                vehiculo_id: vehiculoId,
+                tipo: document.getElementById('campoTipo').value,
+                estado: document.getElementById('campoEstado').value,
+                prioridad: document.getElementById('campoPrioridad').value,
+                odometro: document.getElementById('campoOdometro').value,
+                fecha_programada: document.getElementById('campoFechaProgramada').value,
+                fecha_inicio: datetimeLocalAIso(document.getElementById('campoFechaInicio').value),
+                fecha_fin: datetimeLocalAIso(document.getElementById('campoFechaFin').value),
+                responsable: document.getElementById('campoResponsable').value,
+                taller: document.getElementById('campoTaller').value,
+                descripcion: document.getElementById('campoDescripcion').value,
+                diagnostico: document.getElementById('campoDiagnostico').value,
+                trabajos_realizados: document.getElementById('campoTrabajos').value,
+                observaciones: document.getElementById('campoObservaciones').value,
+                costo_mano_obra: document.getElementById('campoManoObra').value,
+                insumos: leerInsumos()
+            };
+
+            const detalleOrigen = document.getElementById('detalleOrigenId').value;
+            if (detalleOrigen) datos.detalle_id = detalleOrigen;
+
+            const planOrigen = document.getElementById('planOrigenId').value;
+            if (planOrigen) datos.plan_id = planOrigen;
+
+            try {
+                const respuesta = await fetch(id ? `/api/mantenimientos/${id}` : '/api/mantenimientos', {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || 'No se pudo guardar el mantenimiento');
+                }
+
+                bootstrap.Modal.getInstance(document.getElementById('modalMantenimiento')).hide();
+
+                await Promise.all([cargarMantenimientos(), cargarDanos()]);
+
+                Swal.fire({
+                    icon: 'success', title: id ? 'Mantenimiento actualizado' : 'Mantenimiento creado',
+                    timer: 1500, showConfirmButton: false, toast: true, position: 'top-end'
+                });
+
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error al guardar', text: error.message });
+            }
+        }
+
+        async function eliminarMantenimiento(id, placa) {
+            const confirmacion = await Swal.fire({
+                icon: 'warning',
+                title: `¿Eliminar el mantenimiento #${id}?`,
+                text: `Se borrarán sus insumos. Los daños vinculados de ${placa} volverán a la bandeja como pendientes.`,
+                showCancelButton: true,
+                confirmButtonText: 'Eliminar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#e5484d'
+            });
+
+            if (!confirmacion.isConfirmed) return;
+
+            try {
+                const respuesta = await fetch(`/api/mantenimientos/${id}`, { method: 'DELETE' });
+                if (!respuesta.ok) throw new Error('No se pudo eliminar el mantenimiento');
+
+                await Promise.all([cargarMantenimientos(), cargarDanos()]);
+
+                Swal.fire({
+                    icon: 'success', title: 'Mantenimiento eliminado',
+                    timer: 1400, showConfirmButton: false, toast: true, position: 'top-end'
+                });
+
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            }
+        }
+
+        // ============================================================
+        // Programación preventiva
+        // ============================================================
+        let planes = [];
+        let resumenPreventivo = {};
+        let tablaPreventivos = null;
+
+        function km(valor) {
+            if (valor === null || valor === undefined) return '—';
+            return Number(valor).toLocaleString('es-PE') + ' km';
+        }
+
+        async function cargarPreventivos() {
+            try {
+                const respuesta = await fetch('/api/preventivos');
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || `Error HTTP ${respuesta.status}`);
+                }
+
+                const datos = await respuesta.json();
+                planes = datos.planes || [];
+                resumenPreventivo = datos.resumen || {};
+                if (datos.modulo_listo === false) marcarEstadoModulo(false);
+                poblarFiltroRutinas();
+                renderPreventivos();
+
+            } catch (error) {
+                console.error('Error al cargar las rutinas preventivas:', error);
+                Swal.fire({ icon: 'error', title: 'Error al cargar la programación', text: error.message });
+            }
+        }
+
+        function poblarFiltroRutinas() {
+            const nombres = [...new Set(planes.map(p => p.nombre))].sort();
+            const select = document.getElementById('filtroPrevRutina');
+            const seleccionado = select.value;
+
+            select.innerHTML = '<option value="">Todas</option>' +
+                nombres.map(n => `<option value="${escapar(n)}">${escapar(n)}</option>`).join('');
+            select.value = seleccionado;
+        }
+
+        function planesFiltrados() {
+            const vehiculo = document.getElementById('filtroPrevVehiculo').value;
+            const situacion = document.getElementById('filtroPrevSituacion').value;
+            const rutina = document.getElementById('filtroPrevRutina').value;
+            const tipo = document.getElementById('filtroPrevTipo').value;
+
+            return planes.filter(p => {
+                if (vehiculo && String(p.vehiculo_id) !== vehiculo) return false;
+                if (situacion && p.situacion !== situacion) return false;
+                if (rutina && p.nombre !== rutina) return false;
+                if (tipo && p.vehiculo_tipo !== tipo) return false;
+                return true;
+            });
+        }
+
+        function renderResumenPreventivo() {
+            const r = resumenPreventivo;
+            const alertas = (r.vencidos || 0) + (r.por_vencer || 0);
+            document.getElementById('contadorAlertas').textContent = alertas;
+
+            const tarjeta = (clase, icono, cifra, rotulo) =>
+                `<div class="tarjeta-resumen ${clase}">` +
+                `<div class="icono"><i class="fas ${icono}"></i></div>` +
+                `<div><span class="cifra">${cifra || 0}</span><span class="rotulo">${rotulo}</span></div>` +
+                '</div>';
+
+            document.getElementById('resumenPreventivo').innerHTML =
+                tarjeta('vencido', 'fa-circle-exclamation', r.vencidos, 'Vencidos') +
+                tarjeta('por_vencer', 'fa-triangle-exclamation', r.por_vencer, 'Por vencer') +
+                tarjeta('al_dia', 'fa-circle-check', r.al_dia, 'Al día') +
+                tarjeta('sin_dato', 'fa-question', r.sin_odometro, 'Sin odómetro');
+        }
+
+        function renderPreventivos() {
+            renderResumenPreventivo();
+
+            const datos = planesFiltrados().map(p => [p, p, p, p, p, p, p, p, p]);
+
+            if (tablaPreventivos) {
+                tablaPreventivos.clear().rows.add(datos).draw();
+                return;
+            }
+
+            tablaPreventivos = $('#tablaPreventivos').DataTable({
+                data: datos,
+                pageLength: 25,
+                // Por defecto, lo más urgente arriba
+                order: [[6, 'asc']],
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+                columnDefs: [{ orderable: false, targets: [8] }],
+                createdRow: function (fila, datosFila) {
+                    if (!datosFila[0].activo) fila.classList.add('rutina-inactiva');
+                },
+                columns: [
+                    {
+                        render: function (p, type) {
+                            if (type !== 'display') return p.vehiculo_placa;
+                            return `<span class="placa-cell">${escapar(p.vehiculo_placa)}</span>` +
+                                `<div class="cell-muted">${escapar(p.vehiculo_marca)} ${escapar(p.vehiculo_modelo)}</div>`;
+                        }
+                    },
+                    {
+                        render: function (p, type) {
+                            if (type !== 'display') return p.nombre;
+                            const inactiva = p.activo ? '' : '<div class="cell-muted">Inactiva</div>';
+                            return `<span class="rutina-cell">${escapar(p.nombre)}</span>${inactiva}`;
+                        }
+                    },
+                    {
+                        render: function (p, type) {
+                            if (type !== 'display') return p.intervalo_km;
+                            return `<span class="km-cell">${km(p.intervalo_km)}</span>` +
+                                `<div class="cell-muted">avisa ${km(p.aviso_km)} antes</div>`;
+                        }
+                    },
+                    {
+                        render: function (p, type) {
+                            if (type !== 'display') return p.ultimo_servicio_km || 0;
+                            if (p.ultimo_servicio_km === null || p.ultimo_servicio_km === undefined) {
+                                return '<span class="cell-muted">Nunca</span>';
+                            }
+                            const fecha = p.ultimo_servicio_fecha
+                                ? `<div class="cell-muted">${formatearFecha(p.ultimo_servicio_fecha)}</div>` : '';
+                            return `<span class="km-cell">${km(p.ultimo_servicio_km)}</span>${fecha}`;
+                        }
+                    },
+                    {
+                        render: function (p, type) {
+                            if (type !== 'display') return p.odometro_actual || 0;
+                            return p.odometro_actual === null
+                                ? '<span class="cell-muted">Sin registro</span>'
+                                : `<span class="km-cell">${km(p.odometro_actual)}</span>`;
+                        }
+                    },
+                    {
+                        render: function (p, type) {
+                            if (type !== 'display') return p.proximo_km || 0;
+                            return p.proximo_km === null
+                                ? '<span class="cell-muted">—</span>'
+                                : `<span class="km-cell">${km(p.proximo_km)}</span>`;
+                        }
+                    },
+                    {
+                        // Ordena por urgencia: lo vencido primero
+                        render: function (p, type) {
+                            if (type !== 'display') {
+                                return p.restante_km === null ? 999999999 : p.restante_km;
+                            }
+                            if (p.restante_km === null) return '<span class="cell-muted">—</span>';
+                            if (p.restante_km <= 0) {
+                                return `<span class="restante vencido">${km(Math.abs(p.restante_km))} pasados</span>`;
+                            }
+                            return `<span class="restante ${p.situacion}">${km(p.restante_km)}</span>`;
+                        }
+                    },
+                    {
+                        render: function (p, type) {
+                            return type === 'display' ? pill(p.situacion) : p.situacion;
+                        }
+                    },
+                    {
+                        render: function (p) {
+                            return '<div class="action-buttons">' +
+                                `<button class="btn btn-sm btn-outline-secondary" title="Registrar servicio realizado" ` +
+                                `onclick="abrirModalServicio(${p.id})"><i class="fas fa-check"></i></button>` +
+                                `<button class="btn btn-sm btn-outline-secondary" title="Generar orden de mantenimiento" ` +
+                                `onclick="generarOrdenDesdePlan(${p.id})"><i class="fas fa-screwdriver-wrench"></i></button>` +
+                                `<button class="btn btn-sm btn-outline-secondary" title="Editar rutina" ` +
+                                `onclick="abrirModalPlan(${p.id})"><i class="fas fa-edit"></i></button>` +
+                                `<button class="btn btn-sm btn-outline-secondary" title="Eliminar rutina" ` +
+                                `onclick="eliminarPlan(${p.id}, '${escapar(p.nombre)}', '${escapar(p.vehiculo_placa)}')">` +
+                                `<i class="fas fa-trash"></i></button>` +
+                                '</div>';
+                        }
+                    }
+                ]
+            });
+        }
+
+        // ---------- Rutina individual ----------
+        function abrirModalPlan(id) {
+            const modal = new bootstrap.Modal(document.getElementById('modalPlan'));
+            const plan = id ? planes.find(p => p.id === id) : null;
+
+            document.getElementById('planId').value = plan ? plan.id : '';
+            document.getElementById('tituloModalPlan').textContent =
+                plan ? `Rutina — ${plan.vehiculo_placa}` : 'Nueva rutina preventiva';
+            document.getElementById('planVehiculo').value = plan ? plan.vehiculo_id : '';
+            document.getElementById('planNombre').value = plan ? plan.nombre : '';
+            document.getElementById('planIntervalo').value = plan ? plan.intervalo_km : 5000;
+            document.getElementById('planAviso').value = plan ? plan.aviso_km : 500;
+            document.getElementById('planUltimoKm').value = plan && plan.ultimo_servicio_km !== null
+                ? plan.ultimo_servicio_km : '';
+            document.getElementById('planUltimaFecha').value = plan ? (plan.ultimo_servicio_fecha || '') : '';
+            document.getElementById('planObservaciones').value = plan ? (plan.observaciones || '') : '';
+            document.getElementById('planActivo').checked = plan ? plan.activo : true;
+
+            modal.show();
+        }
+
+        async function guardarPlan() {
+            const id = document.getElementById('planId').value;
+            const datos = {
+                vehiculo_id: document.getElementById('planVehiculo').value,
+                nombre: document.getElementById('planNombre').value,
+                intervalo_km: document.getElementById('planIntervalo').value,
+                aviso_km: document.getElementById('planAviso').value,
+                ultimo_servicio_km: document.getElementById('planUltimoKm').value,
+                ultimo_servicio_fecha: document.getElementById('planUltimaFecha').value,
+                observaciones: document.getElementById('planObservaciones').value,
+                activo: document.getElementById('planActivo').checked
+            };
+
+            if (!datos.vehiculo_id) {
+                Swal.fire({ icon: 'warning', title: 'Falta el vehículo' });
+                return;
+            }
+            if (!datos.nombre.trim()) {
+                Swal.fire({ icon: 'warning', title: 'Falta el nombre de la rutina' });
+                return;
+            }
+
+            try {
+                const respuesta = await fetch(id ? `/api/preventivos/${id}` : '/api/preventivos', {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || 'No se pudo guardar la rutina');
+                }
+
+                bootstrap.Modal.getInstance(document.getElementById('modalPlan')).hide();
+                await cargarPreventivos();
+
+                Swal.fire({
+                    icon: 'success', title: id ? 'Rutina actualizada' : 'Rutina creada',
+                    timer: 1400, showConfirmButton: false, toast: true, position: 'top-end'
+                });
+
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error al guardar', text: error.message });
+            }
+        }
+
+        async function eliminarPlan(id, nombre, placa) {
+            const confirmacion = await Swal.fire({
+                icon: 'warning',
+                title: '¿Eliminar la rutina?',
+                text: `"${nombre}" de ${placa} dejará de controlarse.`,
+                showCancelButton: true,
+                confirmButtonText: 'Eliminar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#e5484d'
+            });
+
+            if (!confirmacion.isConfirmed) return;
+
+            try {
+                const respuesta = await fetch(`/api/preventivos/${id}`, { method: 'DELETE' });
+                if (!respuesta.ok) throw new Error('No se pudo eliminar la rutina');
+
+                await cargarPreventivos();
+                Swal.fire({
+                    icon: 'success', title: 'Rutina eliminada',
+                    timer: 1300, showConfirmButton: false, toast: true, position: 'top-end'
+                });
+
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            }
+        }
+
+        // ---------- Aplicación en lote ----------
+        function abrirModalLote() {
+            const motos = vehiculos.filter(v => v.tipo === 'moto').length;
+            const autos = vehiculos.filter(v => v.tipo === 'auto').length;
+
+            document.getElementById('conteoTodos').textContent = `(${vehiculos.length})`;
+            document.getElementById('conteoMotos').textContent = `(${motos})`;
+            document.getElementById('conteoAutos').textContent = `(${autos})`;
+
+            new bootstrap.Modal(document.getElementById('modalLote')).show();
+        }
+
+        async function aplicarLote() {
+            const nombre = document.getElementById('loteNombre').value.trim();
+            const intervalo = document.getElementById('loteIntervalo').value;
+            const aviso = document.getElementById('loteAviso').value;
+            const alcance = document.querySelector('input[name="loteAlcance"]:checked').value;
+
+            if (!nombre) {
+                Swal.fire({ icon: 'warning', title: 'Falta el nombre de la rutina' });
+                return;
+            }
+
+            const cuerpo = {
+                nombre,
+                intervalo_km: intervalo,
+                aviso_km: aviso,
+                alcance: alcance === 'todos' ? 'todos' : 'tipo',
+                tipo: alcance === 'todos' ? null : alcance
+            };
+
+            try {
+                const respuesta = await fetch('/api/preventivos/lote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(cuerpo)
+                });
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || 'No se pudo aplicar la rutina');
+                }
+
+                const resultado = await respuesta.json();
+                bootstrap.Modal.getInstance(document.getElementById('modalLote')).hide();
+                await cargarPreventivos();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Rutina aplicada',
+                    text: `${resultado.creados} vehículo(s) nuevos y ${resultado.actualizados} actualizados.`
+                });
+
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            }
+        }
+
+        // ---------- Registro de servicio ----------
+        function abrirModalServicio(id) {
+            const plan = planes.find(p => p.id === id);
+            if (!plan) return;
+
+            document.getElementById('servicioPlanId').value = id;
+            document.getElementById('tituloModalServicio').textContent =
+                `${plan.nombre} — ${plan.vehiculo_placa}`;
+            document.getElementById('servicioDetalle').textContent =
+                `Al registrarlo, el siguiente servicio se calculará a los ${Number(plan.intervalo_km).toLocaleString('es-PE')} km posteriores.`;
+            document.getElementById('servicioOdometro').value = plan.odometro_actual || '';
+            document.getElementById('servicioFecha').value = new Date().toISOString().slice(0, 10);
+
+            new bootstrap.Modal(document.getElementById('modalServicio')).show();
+        }
+
+        async function guardarServicio() {
+            const id = document.getElementById('servicioPlanId').value;
+            const odometro = document.getElementById('servicioOdometro').value;
+
+            if (odometro === '') {
+                Swal.fire({ icon: 'warning', title: 'Falta el odómetro del servicio' });
+                return;
+            }
+
+            try {
+                const respuesta = await fetch(`/api/preventivos/${id}/servicio`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        odometro,
+                        fecha: document.getElementById('servicioFecha').value
+                    })
+                });
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || 'No se pudo registrar el servicio');
+                }
+
+                bootstrap.Modal.getInstance(document.getElementById('modalServicio')).hide();
+                await cargarPreventivos();
+
+                Swal.fire({
+                    icon: 'success', title: 'Servicio registrado',
+                    timer: 1400, showConfirmButton: false, toast: true, position: 'top-end'
+                });
+
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            }
+        }
+
+        // Abre una orden preventiva ligada a la rutina: al finalizarla, la
+        // rutina avanza sola al siguiente ciclo.
+        function generarOrdenDesdePlan(id) {
+            const plan = planes.find(p => p.id === id);
+            if (!plan) return;
+
+            abrirModalMantenimiento();
+
+            document.getElementById('planOrigenId').value = plan.id;
+            document.getElementById('campoVehiculo').value = plan.vehiculo_id || '';
+            document.getElementById('campoTipo').value = 'preventivo';
+            document.getElementById('campoOdometro').value = plan.odometro_actual || '';
+            document.getElementById('campoDescripcion').value =
+                `${plan.nombre} (rutina cada ${Number(plan.intervalo_km).toLocaleString('es-PE')} km)` +
+                (plan.proximo_km !== null ? `\nProgramado a los ${Number(plan.proximo_km).toLocaleString('es-PE')} km` : '');
+
+            document.getElementById('tituloModalMantenimiento').textContent =
+                `Orden preventiva — ${plan.vehiculo_placa}`;
+        }
+
+        // ============================================================
+        // Arranque
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function () {
+            ['filtroDanoVehiculo', 'filtroDanoSituacion', 'filtroDanoOrigen', 'filtroDanoEstado']
+                .forEach(id => document.getElementById(id).addEventListener('change', renderDanos));
+
+            ['filtroMantVehiculo', 'filtroMantTipo', 'filtroMantEstado', 'filtroMantPrioridad']
+                .forEach(id => document.getElementById(id).addEventListener('change', renderMantenimientos));
+
+            ['filtroPrevVehiculo', 'filtroPrevSituacion', 'filtroPrevRutina', 'filtroPrevTipo']
+                .forEach(id => document.getElementById(id).addEventListener('change', renderPreventivos));
+
+            cargarTodo();
+        });
+    </script>
+</body>
+</html>

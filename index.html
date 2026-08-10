@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspección Vehicular</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="app.css">
+
+    <style>
+        /* Estilos específicos para tablet */
+        body {
+            background: var(--canvas);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        .main-header {
+            text-align: center;
+            margin-bottom: 15px;
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-header h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .main-header p {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        .inspection-form-tablet {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+        }
+
+        .form-group-tablet {
+            margin-bottom: 12px;
+        }
+
+        .form-group-tablet label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+        }
+
+        .form-select-tablet {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            background-color: #fff;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-select-tablet:focus {
+            border-color: #0097c6;
+            box-shadow: 0 0 0 0.2rem rgba(0,151,198, 0.15);
+            outline: none;
+        }
+
+        .form-select-tablet:hover {
+            border-color: #ced4da;
+        }
+
+        .form-text {
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .btn-tablet {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 160px;
+            justify-content: center;
+        }
+
+        .btn-primary-tablet {
+            background: linear-gradient(135deg, #0782a8 0%, #00728f 100%);
+            color: white;
+            box-shadow: 0 8px 20px rgba(0,151,198, 0.3);
+        }
+
+        .btn-primary-tablet:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(0,151,198, 0.4);
+            color: white;
+        }
+
+        .btn-secondary-tablet {
+            background: #6c757d;
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-secondary-tablet:hover {
+            background: #545b62;
+            transform: translateY(-1px);
+            color: white;
+        }
+
+        .btn-tablet:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .datetime-info {
+            text-align: center;
+            margin-top: 10px;
+            padding: 10px;
+            background: var(--brand-primary-050);
+            border-radius: 10px;
+            border: 1px solid var(--brand-primary-100);
+        }
+
+        /* Estilos para búsqueda predictiva */
+        .search-container {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            background-color: #fff;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .search-input:focus {
+            border-color: #0097c6;
+            box-shadow: 0 0 0 0.2rem rgba(0,151,198, 0.15);
+            outline: none;
+        }
+
+        .search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .search-dropdown.show {
+            display: block;
+        }
+
+        .search-option {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f8f9fa;
+            transition: background-color 0.2s ease;
+            color: #2c3e50;
+            font-size: 0.95rem;
+        }
+
+        .search-option:hover,
+        .search-option.highlighted {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+        }
+
+        .search-option:last-child {
+            border-bottom: none;
+        }
+
+        .no-results {
+            padding: 12px 16px;
+            color: #6c757d;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+
+        .datetime-info p {
+            margin: 0;
+            color: var(--brand-primary-800);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        /* Último odómetro conocido y avisos de validación */
+        .odometer-last {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: var(--brand-primary-800);
+            background: var(--brand-primary-050);
+            border: 1px solid var(--brand-primary-100);
+            border-radius: 8px;
+            padding: 7px 10px;
+            display: none;
+        }
+
+        .odometer-last.show {
+            display: block;
+        }
+
+        .odometer-last .km {
+            font-weight: 700;
+        }
+
+        .odometer-alert {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            padding: 8px 10px;
+            display: none;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .odometer-alert.show {
+            display: flex;
+        }
+
+        .odometer-alert.warn {
+            background: #fdf1e0;
+            border: 1px solid #f0c98a;
+            color: #8a5200;
+        }
+
+        .odometer-alert.error {
+            background: #fdeaea;
+            border: 1px solid #f2b6b6;
+            color: #b3272b;
+        }
+
+        input.form-select-tablet.is-invalid {
+            border-color: #e74c3c;
+        }
+
+        /* Datos de la placa visitante (solo movimientos de visita) */
+        .visit-fields {
+            display: none;
+        }
+
+        .visit-fields.show {
+            display: block;
+        }
+
+        .movement-note {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: var(--brand-accent-050, #fdf0f7);
+            border: 1px solid var(--brand-accent-100, #f6d3e7);
+            color: var(--brand-accent-700, #a83a77);
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .movement-note.show {
+            display: block;
+        }
+
+        /* Responsive para tablet */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .main-header h1 {
+                font-size: 2rem;
+            }
+
+            .inspection-form-tablet {
+                padding: 25px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn-tablet {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <img src="logopa.png" alt="Pacífico Asiste"
+                    style="height: 34px; width: auto; background: white; border-radius: 5px; padding: 3px 5px;">
+                <span>Inspecciones Vehiculares</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="index.html">
+                            <i class="fas fa-home"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="historico.html">
+                            <i class="fas fa-history"></i> Histórico
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="odometros.html">
+                            <i class="fas fa-tachometer-alt"></i> Odómetros
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="maestranza.html">
+                            <i class="fas fa-screwdriver-wrench"></i> Maestranza
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="admin.html">
+                            <i class="fas fa-cogs"></i> Administración
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-2">
+        <div id="welcome-container">
+            <div class="main-header">
+                <h1>
+                    <i class="fas fa-clipboard-check"></i>
+                    Nueva Inspección
+                </h1>
+                <p>Complete los datos del vehículo para comenzar la inspección</p>
+            </div>
+
+            <div class="inspection-form-tablet">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="form-group-tablet">
+                            <label for="entry-type">
+                                <i class="fas fa-exchange-alt"></i>
+                                Tipo de Movimiento
+                            </label>
+                            <select id="entry-type" class="form-select-tablet" required>
+                                <option value="">Seleccione tipo</option>
+                                <optgroup label="Operación — con inspección">
+                                    <option value="salida">Salida — el vehículo sale</option>
+                                    <option value="entrada">Entrada — el vehículo regresa</option>
+                                </optgroup>
+                                <optgroup label="Mantenimiento — solo registro">
+                                    <option value="salida_mantenimiento">Salida por mantenimiento</option>
+                                    <option value="entrada_mantenimiento">Ingreso por mantenimiento</option>
+                                </optgroup>
+                                <optgroup label="Visitas — solo registro">
+                                    <option value="salida_visita">Salida de visita</option>
+                                    <option value="entrada_visita">Ingreso de visita</option>
+                                </optgroup>
+                            </select>
+                            <small class="form-text text-muted">Los movimientos de mantenimiento y visita se
+                                registran desde aquí, sin inspección</small>
+                            <div class="movement-note" id="movement-note"></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-group-tablet">
+                            <label for="advisor-search">
+                                <i class="fas fa-user-tie"></i>
+                                Asesor Responsable
+                            </label>
+                            <div class="search-container">
+                                <input type="text" id="advisor-search" class="search-input"
+                                    placeholder="Buscar asesor..." autocomplete="off">
+                                <div id="advisor-dropdown" class="search-dropdown"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4 mt-1">
+                    <div class="col-md-6">
+                        <div class="form-group-tablet" id="vehicle-field">
+                            <label for="vehicle-search">
+                                <i class="fas fa-car"></i>
+                                Vehículo
+                            </label>
+                            <div class="search-container">
+                                <input type="text" id="vehicle-search" class="search-input"
+                                    placeholder="Buscar por placa o modelo..." autocomplete="off">
+                                <div id="vehicle-dropdown" class="search-dropdown"></div>
+                            </div>
+                        </div>
+
+                        <!-- Las visitas traen placas ajenas a la flota: se escriben a mano -->
+                        <div class="visit-fields" id="visit-fields">
+                            <div class="form-group-tablet">
+                                <label for="visit-plate">
+                                    <i class="fas fa-id-card"></i>
+                                    Placa de la visita
+                                </label>
+                                <input type="text" id="visit-plate" class="form-select-tablet"
+                                    placeholder="Ej: ABC-123" autocomplete="off" maxlength="20">
+                                <small class="form-text text-muted">Si la placa ya visitó antes, se reutiliza su
+                                    registro</small>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="form-group-tablet">
+                                        <label for="visit-brand">
+                                            <i class="fas fa-industry"></i>
+                                            Marca
+                                        </label>
+                                        <input type="text" id="visit-brand" class="form-select-tablet"
+                                            placeholder="Opcional" autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-group-tablet">
+                                        <label for="visit-model">
+                                            <i class="fas fa-cogs"></i>
+                                            Modelo
+                                        </label>
+                                        <input type="text" id="visit-model" class="form-select-tablet"
+                                            placeholder="Opcional" autocomplete="off">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-group-tablet">
+                            <label for="odometer-input">
+                                <i class="fas fa-tachometer-alt"></i>
+                                Odómetro (km)
+                            </label>
+                            <input type="number" id="odometer-input" class="form-select-tablet" placeholder="Ej: 45000"
+                                min="0" required>
+                            <small class="form-text text-muted" id="odometer-help">Ingrese el kilometraje actual del
+                                vehículo</small>
+                            <div class="odometer-last" id="odometer-last"></div>
+                            <div class="odometer-alert" id="odometer-alert"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="datetime-info">
+                    <p>
+                        <i class="fas fa-clock me-2"></i>
+                        La fecha y hora se registrarán automáticamente al guardar el movimiento
+                    </p>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="refresh-data-btn" class="btn-tablet btn-secondary-tablet">
+                        <i class="fas fa-sync-alt"></i>
+                        Actualizar
+                    </button>
+                    <button id="start-inspection" class="btn-tablet btn-primary-tablet" disabled>
+                        <i class="fas fa-play-circle"></i>
+                        <span id="start-inspection-text">Iniciar Inspección</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales necesarias
+        let selectedVehicle = null;
+        let selectedAdvisor = null;
+        let vehicleType = null;
+        let vehiclesList = [];
+        let advisorsList = [];
+
+        // Odómetro vigente de cada vehículo, para mostrar el último valor y
+        // validar el que se ingresa. Clave: id de vehículo.
+        let odometrosPorVehiculo = {};
+
+        // ============================================================
+        // Tipos de movimiento
+        // ============================================================
+        // Los de mantenimiento y visita no pasan por el formulario de
+        // inspección: no llevan EPP ni marcado de daños. Se guardan desde
+        // esta misma pantalla con una confirmación.
+        const TIPOS_MOVIMIENTO = {
+            salida: { etiqueta: 'Salida', directo: false },
+            entrada: { etiqueta: 'Entrada', directo: false },
+            salida_mantenimiento: {
+                etiqueta: 'Salida por mantenimiento',
+                directo: true,
+                nota: 'Solo se registra el movimiento: no se piden EPP ni marcado de daños.'
+            },
+            entrada_mantenimiento: {
+                etiqueta: 'Ingreso por mantenimiento',
+                directo: true,
+                nota: 'Solo se registra el movimiento: no se piden EPP ni marcado de daños.'
+            },
+            salida_visita: {
+                etiqueta: 'Salida de visita',
+                directo: true,
+                visita: true,
+                nota: 'Registro de placa visitante: no se piden EPP ni marcado de daños.'
+            },
+            entrada_visita: {
+                etiqueta: 'Ingreso de visita',
+                directo: true,
+                visita: true,
+                nota: 'Registro de placa visitante: no se piden EPP ni marcado de daños.'
+            }
+        };
+
+        // Control del odómetro: nunca por debajo del último registrado y
+        // nunca más de 500 km por encima. A partir de 300 km se avisa.
+        const AVISO_ODOMETRO_KM = 300;
+        const MAXIMO_ODOMETRO_KM = 500;
+
+        function tipoActual() {
+            return document.getElementById('entry-type').value;
+        }
+
+        function configTipo(tipo) {
+            return TIPOS_MOVIMIENTO[tipo || ''] || null;
+        }
+
+        function esMovimientoDeVisita(tipo) {
+            const config = configTipo(tipo);
+            return !!(config && config.visita);
+        }
+
+        function esMovimientoDirecto(tipo) {
+            const config = configTipo(tipo);
+            return !!(config && config.directo);
+        }
+
+        function formatearKm(valor) {
+            return Number(valor).toLocaleString('es-PE');
+        }
+
+        function formatearFechaCorta(valor) {
+            if (!valor) return '';
+            const fecha = new Date(valor);
+            if (isNaN(fecha.getTime())) return '';
+            return fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        // ============================================================
+        // Odómetro: último valor conocido y validación
+        // ============================================================
+        async function loadOdometros() {
+            try {
+                const response = await fetch(`/api/odometros?t=${new Date().getTime()}`, {
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+
+                if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+                const datos = await response.json();
+                odometrosPorVehiculo = {};
+                (datos.odometros || []).forEach(o => { odometrosPorVehiculo[o.id] = o; });
+                console.log('Odómetros cargados:', Object.keys(odometrosPorVehiculo).length);
+            } catch (error) {
+                // Sin estos datos el registro sigue siendo posible: solo se
+                // pierde el control de coherencia del kilometraje.
+                console.error('Error cargando odómetros:', error);
+                odometrosPorVehiculo = {};
+            }
+        }
+
+        // Último kilometraje conocido del vehículo seleccionado, o null
+        function ultimoOdometro() {
+            if (!selectedVehicle) return null;
+            const registro = odometrosPorVehiculo[selectedVehicle.id];
+            if (!registro || registro.odometro_actual === null || registro.odometro_actual === undefined) {
+                return null;
+            }
+            return registro;
+        }
+
+        function mostrarUltimoOdometro() {
+            const contenedor = document.getElementById('odometer-last');
+            const registro = ultimoOdometro();
+
+            // Las visitas no son de la flota: no tienen historial que mostrar
+            if (!registro || esMovimientoDeVisita(tipoActual())) {
+                contenedor.classList.remove('show');
+                contenedor.innerHTML = '';
+                return;
+            }
+
+            const fecha = formatearFechaCorta(registro.fecha_referencia);
+            const origen = registro.origen === 'carga_inicial' ? 'carga inicial' : 'última inspección';
+
+            contenedor.innerHTML =
+                `<i class="fas fa-clock-rotate-left me-1"></i>` +
+                `Último valor: <span class="km">${formatearKm(registro.odometro_actual)} km</span>` +
+                (fecha ? ` <span class="text-muted">(${origen}, ${fecha})</span>` : ` <span class="text-muted">(${origen})</span>`);
+            contenedor.classList.add('show');
+        }
+
+        // Devuelve { estado: 'ok' | 'aviso' | 'error', mensaje }
+        function validarOdometro() {
+            const campo = document.getElementById('odometer-input');
+            const valor = campo.value;
+            const registro = ultimoOdometro();
+
+            if (valor === '' || registro === null || esMovimientoDeVisita(tipoActual())) {
+                return { estado: 'ok', mensaje: '' };
+            }
+
+            const km = parseInt(valor, 10);
+            if (isNaN(km)) return { estado: 'ok', mensaje: '' };
+
+            const ultimo = registro.odometro_actual;
+            const diferencia = km - ultimo;
+
+            if (diferencia < 0) {
+                return {
+                    estado: 'error',
+                    mensaje: `El odómetro no puede ser menor que el último registrado ` +
+                        `(${formatearKm(ultimo)} km). Faltan ${formatearKm(Math.abs(diferencia))} km.`
+                };
+            }
+
+            if (diferencia > MAXIMO_ODOMETRO_KM) {
+                return {
+                    estado: 'error',
+                    mensaje: `La diferencia con el último registro es de ${formatearKm(diferencia)} km y ` +
+                        `el máximo permitido es ${MAXIMO_ODOMETRO_KM} km. Revise el valor ingresado.`
+                };
+            }
+
+            if (diferencia > AVISO_ODOMETRO_KM) {
+                return {
+                    estado: 'aviso',
+                    mensaje: `La diferencia con el último registro es de ${formatearKm(diferencia)} km ` +
+                        `(más de ${AVISO_ODOMETRO_KM} km). Confirme que el kilometraje es correcto.`
+                };
+            }
+
+            return { estado: 'ok', mensaje: '' };
+        }
+
+        function mostrarAvisoOdometro(resultado) {
+            const aviso = document.getElementById('odometer-alert');
+            const campo = document.getElementById('odometer-input');
+
+            campo.classList.toggle('is-invalid', resultado.estado === 'error');
+
+            if (resultado.estado === 'ok') {
+                aviso.classList.remove('show', 'warn', 'error');
+                aviso.innerHTML = '';
+                return;
+            }
+
+            const icono = resultado.estado === 'error' ? 'fa-circle-exclamation' : 'fa-triangle-exclamation';
+            aviso.className = `odometer-alert show ${resultado.estado === 'error' ? 'error' : 'warn'}`;
+            aviso.innerHTML = `<i class="fas ${icono} mt-1"></i><span>${resultado.mensaje}</span>`;
+        }
+
+        // ============================================================
+        // Estado del formulario
+        // ============================================================
+        // Muestra el buscador de flota o los campos de placa visitante
+        function aplicarTipoMovimiento() {
+            const tipo = tipoActual();
+            const config = configTipo(tipo);
+            const esVisita = esMovimientoDeVisita(tipo);
+
+            document.getElementById('vehicle-field').style.display = esVisita ? 'none' : '';
+            document.getElementById('visit-fields').classList.toggle('show', esVisita);
+
+            const nota = document.getElementById('movement-note');
+            if (config && config.nota) {
+                nota.innerHTML = `<i class="fas fa-circle-info me-2"></i>${config.nota}`;
+                nota.classList.add('show');
+            } else {
+                nota.classList.remove('show');
+                nota.innerHTML = '';
+            }
+
+            // En visitas el kilometraje es opcional: la placa no es de la flota
+            document.getElementById('odometer-help').textContent = esVisita
+                ? 'Opcional para visitas'
+                : 'Ingrese el kilometraje actual del vehículo';
+
+            const textoBoton = document.getElementById('start-inspection-text');
+            const icono = document.querySelector('#start-inspection i');
+            if (esMovimientoDirecto(tipo)) {
+                textoBoton.textContent = 'Registrar Movimiento';
+                if (icono) icono.className = 'fas fa-clipboard-check';
+            } else {
+                textoBoton.textContent = 'Iniciar Inspección';
+                if (icono) icono.className = 'fas fa-play-circle';
+            }
+
+            mostrarUltimoOdometro();
+            mostrarAvisoOdometro(validarOdometro());
+        }
+
+        // Función para actualizar el estado del botón de inicio
+        function updateStartButtonState() {
+            const startButton = document.getElementById('start-inspection');
+            const odometer = document.getElementById('odometer-input').value;
+            const type = tipoActual();
+
+            if (!startButton) return;
+
+            const esVisita = esMovimientoDeVisita(type);
+            const placaVisita = document.getElementById('visit-plate').value.trim();
+
+            const vehiculoListo = esVisita ? placaVisita.length > 0 : !!selectedVehicle;
+            const odometroListo = esVisita ? true : !!odometer;
+            const validacion = validarOdometro();
+
+            const allFieldsValid = vehiculoListo && selectedAdvisor && odometroListo && type &&
+                validacion.estado !== 'error';
+            startButton.disabled = !allFieldsValid;
+
+            // Cambiar el estilo del botón según su estado
+            if (startButton.disabled) {
+                startButton.classList.remove('btn-primary-tablet');
+                startButton.classList.add('btn-secondary-tablet');
+            } else {
+                startButton.classList.remove('btn-secondary-tablet');
+                startButton.classList.add('btn-primary-tablet');
+            }
+        }
+
+        // Función para cargar vehículos desde la API
+        async function loadVehicles() {
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/api/vehiculos?t=${timestamp}`, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+
+                vehiclesList = await response.json();
+                console.log('Vehículos cargados:', vehiclesList);
+            } catch (error) {
+                console.error('Error cargando vehículos:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al cargar vehículos',
+                    text: error.message,
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        }
+
+        // Función para cargar asesores desde la API
+        async function loadAdvisors() {
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/api/asesores?t=${timestamp}`, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+
+                advisorsList = await response.json();
+                console.log('Asesores cargados:', advisorsList);
+            } catch (error) {
+                console.error('Error cargando asesores:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al cargar asesores',
+                    text: error.message,
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        }
+
+        // Función para filtrar vehículos
+        function filterVehicles(query) {
+            console.log('Filtrando vehículos con query:', query);
+            console.log('Lista de vehículos disponible:', vehiclesList);
+
+            if (!query) return [];
+
+            const searchTerm = query.toLowerCase();
+            const filtered = vehiclesList.filter(vehicle => {
+                // Las placas dadas de alta por una visita no son de la flota
+                if (vehicle.es_visita === true || vehicle.tipo === 'visita') return false;
+
+                const placa = (vehicle.placa || '').toLowerCase();
+                const marca = (vehicle.marca || '').toLowerCase();
+                const modelo = (vehicle.modelo || '').toLowerCase();
+
+                const matches = placa.includes(searchTerm) ||
+                    marca.includes(searchTerm) ||
+                    modelo.includes(searchTerm) ||
+                    `${placa} ${marca} ${modelo}`.includes(searchTerm);
+
+                if (matches) {
+                    console.log('Vehículo coincidente:', vehicle);
+                }
+
+                return matches;
+            });
+
+            console.log('Vehículos filtrados:', filtered);
+            return filtered;
+        }
+
+        // Función para filtrar asesores
+        function filterAdvisors(query) {
+            if (!query) return [];
+
+            const searchTerm = query.toLowerCase();
+            return advisorsList.filter(advisor => {
+                const nombre = (advisor.nombre || '').toLowerCase();
+                const email = (advisor.email || '').toLowerCase();
+
+                return nombre.includes(searchTerm) || email.includes(searchTerm);
+            });
+        }
+
+        // Función para mostrar dropdown de vehículos
+        function showVehicleDropdown(filteredVehicles) {
+            console.log('Mostrando dropdown con vehículos:', filteredVehicles);
+            const dropdown = document.getElementById('vehicle-dropdown');
+
+            if (!dropdown) {
+                console.error('No se encontró el elemento vehicle-dropdown');
+                return;
+            }
+
+            dropdown.innerHTML = '';
+
+            if (filteredVehicles.length === 0) {
+                console.log('No hay vehículos filtrados, mostrando mensaje de no resultados');
+                const noResults = document.createElement('div');
+                noResults.className = 'no-results';
+                noResults.textContent = 'No se encontraron vehículos';
+                dropdown.appendChild(noResults);
+            } else {
+                console.log('Creando opciones para', filteredVehicles.length, 'vehículos');
+                filteredVehicles.forEach(vehicle => {
+                    const option = document.createElement('div');
+                    option.className = 'search-option';
+                    option.textContent = `${vehicle.placa} - ${vehicle.marca} ${vehicle.modelo}`;
+                    option.addEventListener('click', () => selectVehicle(vehicle));
+                    dropdown.appendChild(option);
+                    console.log('Opción creada:', option.textContent);
+                });
+            }
+
+            dropdown.classList.add('show');
+            console.log('Dropdown mostrado, clases:', dropdown.className);
+        }
+
+        // Función para mostrar dropdown de asesores
+        function showAdvisorDropdown(filteredAdvisors) {
+            const dropdown = document.getElementById('advisor-dropdown');
+            dropdown.innerHTML = '';
+
+            if (filteredAdvisors.length === 0) {
+                const noResults = document.createElement('div');
+                noResults.className = 'no-results';
+                noResults.textContent = 'No se encontraron asesores';
+                dropdown.appendChild(noResults);
+            } else {
+                filteredAdvisors.forEach(advisor => {
+                    const option = document.createElement('div');
+                    option.className = 'search-option';
+                    option.textContent = advisor.nombre;
+                    option.addEventListener('click', () => selectAdvisor(advisor));
+                    dropdown.appendChild(option);
+                });
+            }
+
+            dropdown.classList.add('show');
+        }
+
+        // Función para seleccionar vehículo
+        function selectVehicle(vehicle) {
+            selectedVehicle = vehicle;
+            vehicleType = vehicle.tipo || 'auto';
+
+            const input = document.getElementById('vehicle-search');
+            input.value = `${vehicle.placa} - ${vehicle.marca} ${vehicle.modelo}`;
+
+            const dropdown = document.getElementById('vehicle-dropdown');
+            dropdown.classList.remove('show');
+
+            console.log('Vehículo seleccionado:', selectedVehicle);
+            mostrarUltimoOdometro();
+            mostrarAvisoOdometro(validarOdometro());
+            updateStartButtonState();
+        }
+
+        // Función para seleccionar asesor
+        function selectAdvisor(advisor) {
+            selectedAdvisor = advisor;
+
+            const input = document.getElementById('advisor-search');
+            input.value = advisor.nombre;
+
+            const dropdown = document.getElementById('advisor-dropdown');
+            dropdown.classList.remove('show');
+
+            console.log('Asesor seleccionado:', selectedAdvisor);
+            updateStartButtonState();
+        }
+
+        // Función para ocultar dropdowns
+        function hideDropdowns() {
+            document.getElementById('vehicle-dropdown').classList.remove('show');
+            document.getElementById('advisor-dropdown').classList.remove('show');
+        }
+
+        // ============================================================
+        // Movimientos que se registran sin pasar por la inspección
+        // ============================================================
+        // Mantenimiento y visita solo dejan constancia del movimiento: se
+        // guardan aquí mismo, con confirmación previa y sin detalle de daños.
+        async function registrarMovimientoDirecto(tipo) {
+            const config = configTipo(tipo);
+            const esVisita = esMovimientoDeVisita(tipo);
+            const odometro = document.getElementById('odometer-input').value;
+
+            let vehiculo = selectedVehicle;
+            let placa = '';
+
+            if (esVisita) {
+                placa = document.getElementById('visit-plate').value.trim().toUpperCase();
+                if (!placa) return;
+            } else {
+                if (!vehiculo) return;
+                placa = `${vehiculo.placa} — ${vehiculo.marca} ${vehiculo.modelo}`;
+            }
+
+            const filas = [
+                ['Movimiento', config.etiqueta],
+                ['Vehículo', placa],
+                ['Asesor', selectedAdvisor.nombre],
+                ['Odómetro', odometro ? `${formatearKm(parseInt(odometro, 10))} km` : 'No registrado']
+            ];
+
+            const confirmacion = await Swal.fire({
+                icon: 'question',
+                title: 'Confirmar registro',
+                html: '<table style="margin:0 auto;text-align:left;font-size:0.95rem;">' +
+                    filas.map(([etiqueta, valor]) =>
+                        `<tr><td style="padding:4px 12px 4px 0;color:#6c757d;">${etiqueta}</td>` +
+                        `<td style="padding:4px 0;font-weight:600;">${valor}</td></tr>`).join('') +
+                    '</table>' +
+                    '<p style="margin-top:14px;font-size:0.85rem;color:#6c757d;">' +
+                    'Este movimiento no requiere inspección de daños ni verificación de EPP.</p>',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, registrar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0097c6',
+                cancelButtonColor: '#6c757d'
+            });
+
+            if (!confirmacion.isConfirmed) return;
+
+            Swal.fire({
+                title: 'Registrando movimiento...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            try {
+                // La placa visitante se da de alta (o se reutiliza) antes de
+                // guardar el movimiento, que necesita un vehiculo_id.
+                if (esVisita) {
+                    const respuestaVisita = await fetch('/api/vehiculos/visita', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            placa,
+                            marca: document.getElementById('visit-brand').value.trim(),
+                            modelo: document.getElementById('visit-model').value.trim()
+                        })
+                    });
+
+                    if (!respuestaVisita.ok) {
+                        const error = await respuestaVisita.json().catch(() => ({}));
+                        throw new Error(error.error || 'No se pudo registrar la placa de la visita');
+                    }
+
+                    vehiculo = await respuestaVisita.json();
+                }
+
+                const respuesta = await fetch('/api/inspecciones', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fecha: new Date().toISOString(),
+                        vehiculo_id: vehiculo.id,
+                        asesor_id: selectedAdvisor.id,
+                        tipo_entrada: tipo,
+                        odometro: odometro ? parseInt(odometro, 10) : null,
+                        detalles: []
+                    })
+                });
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || 'No se pudo registrar el movimiento');
+                }
+
+                const resultado = await Swal.fire({
+                    icon: 'success',
+                    title: 'Movimiento registrado',
+                    html: `<strong>${config.etiqueta}</strong><br>${placa}`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Registrar otro',
+                    cancelButtonText: 'Ver histórico',
+                    confirmButtonColor: '#0097c6',
+                    cancelButtonColor: '#6c757d'
+                });
+
+                if (resultado.isConfirmed) {
+                    limpiarFormulario();
+                    await loadOdometros();
+                } else {
+                    window.location.href = 'historico.html';
+                }
+
+            } catch (error) {
+                console.error('Error al registrar el movimiento:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al registrar',
+                    text: error.message,
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        }
+
+        function limpiarFormulario() {
+            selectedVehicle = null;
+            selectedAdvisor = null;
+            vehicleType = null;
+
+            document.getElementById('vehicle-search').value = '';
+            document.getElementById('advisor-search').value = '';
+            document.getElementById('odometer-input').value = '';
+            document.getElementById('visit-plate').value = '';
+            document.getElementById('visit-brand').value = '';
+            document.getElementById('visit-model').value = '';
+            hideDropdowns();
+
+            aplicarTipoMovimiento();
+            updateStartButtonState();
+        }
+
+        // Función para iniciar la inspección con todos los datos
+        async function startInspection() {
+            const odometer = document.getElementById('odometer-input').value;
+            const type = tipoActual();
+            const esVisita = esMovimientoDeVisita(type);
+            const placaVisita = document.getElementById('visit-plate').value.trim();
+
+            const vehiculoListo = esVisita ? placaVisita.length > 0 : !!selectedVehicle;
+            const odometroListo = esVisita ? true : !!odometer;
+
+            if (!vehiculoListo || !selectedAdvisor || !odometroListo || !type) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Campos incompletos',
+                    text: 'Por favor, complete todos los campos antes de continuar.',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#f39c12'
+                });
+                return;
+            }
+
+            // Control del kilometraje antes de cualquier registro
+            const validacion = validarOdometro();
+            mostrarAvisoOdometro(validacion);
+
+            if (validacion.estado === 'error') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Odómetro fuera de rango',
+                    text: validacion.mensaje,
+                    confirmButtonText: 'Corregir',
+                    confirmButtonColor: '#dc3545'
+                });
+                return;
+            }
+
+            if (validacion.estado === 'aviso') {
+                const confirmacion = await Swal.fire({
+                    icon: 'warning',
+                    title: 'Verifique el odómetro',
+                    text: validacion.mensaje,
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, es correcto',
+                    cancelButtonText: 'Corregir',
+                    confirmButtonColor: '#f39c12',
+                    cancelButtonColor: '#6c757d'
+                });
+
+                if (!confirmacion.isConfirmed) return;
+            }
+
+            // Mantenimiento y visita se registran aquí mismo
+            if (esMovimientoDirecto(type)) {
+                await registrarMovimientoDirecto(type);
+                return;
+            }
+
+            console.log('Iniciando inspección con:', { selectedVehicle, selectedAdvisor, odometer, type });
+
+            try {
+                // Limpiar localStorage antes de guardar los nuevos valores
+                localStorage.clear();
+
+                // Guardar datos en localStorage (sin fecha, se tomará automáticamente)
+                localStorage.setItem('selectedVehicleId', selectedVehicle.id.toString());
+                localStorage.setItem('selectedVehicleName', `${selectedVehicle.placa} - ${selectedVehicle.marca} ${selectedVehicle.modelo}`);
+                localStorage.setItem('vehicleType', selectedVehicle.tipo || 'auto');
+                localStorage.setItem('selectedAdvisorId', selectedAdvisor.id.toString());
+                localStorage.setItem('selectedAdvisorName', selectedAdvisor.nombre);
+                localStorage.setItem('odometerValue', odometer);
+                localStorage.setItem('entryType', type);
+
+                console.log('Datos guardados en localStorage');
+
+                // Redireccionar a la página de inspección
+                window.location.href = 'inspection.html';
+            } catch (error) {
+                console.error('Error al iniciar inspección:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al iniciar inspección',
+                    text: error.message,
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('DOM cargado - Inicializando aplicación');
+
+            // Cargar datos iniciales
+            loadVehicles();
+            loadAdvisors();
+            loadOdometros();
+            aplicarTipoMovimiento();
+
+            // Event listeners para búsqueda de vehículos
+            const vehicleSearch = document.getElementById('vehicle-search');
+            vehicleSearch.addEventListener('input', function () {
+                const query = this.value.trim();
+                if (query.length > 0) {
+                    const filtered = filterVehicles(query);
+                    showVehicleDropdown(filtered);
+                } else {
+                    hideDropdowns();
+                    selectedVehicle = null;
+                    vehicleType = null;
+                    mostrarUltimoOdometro();
+                    mostrarAvisoOdometro(validarOdometro());
+                    updateStartButtonState();
+                }
+            });
+
+            vehicleSearch.addEventListener('focus', function () {
+                const query = this.value.trim();
+                if (query.length > 0) {
+                    const filtered = filterVehicles(query);
+                    showVehicleDropdown(filtered);
+                }
+            });
+
+            // Event listeners para búsqueda de asesores
+            const advisorSearch = document.getElementById('advisor-search');
+            advisorSearch.addEventListener('input', function () {
+                const query = this.value.trim();
+                if (query.length > 0) {
+                    const filtered = filterAdvisors(query);
+                    showAdvisorDropdown(filtered);
+                } else {
+                    hideDropdowns();
+                    selectedAdvisor = null;
+                    updateStartButtonState();
+                }
+            });
+
+            advisorSearch.addEventListener('focus', function () {
+                const query = this.value.trim();
+                if (query.length > 0) {
+                    const filtered = filterAdvisors(query);
+                    showAdvisorDropdown(filtered);
+                }
+            });
+
+            // Ocultar dropdowns al hacer clic fuera
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest('.search-container')) {
+                    hideDropdowns();
+                }
+            });
+
+            // Event listeners para los otros campos
+            document.getElementById('odometer-input').addEventListener('input', function () {
+                mostrarAvisoOdometro(validarOdometro());
+                updateStartButtonState();
+            });
+
+            document.getElementById('entry-type').addEventListener('change', function () {
+                aplicarTipoMovimiento();
+                updateStartButtonState();
+            });
+
+            document.getElementById('visit-plate').addEventListener('input', updateStartButtonState);
+
+            // Listener para el botón de inicio
+            const startButton = document.getElementById('start-inspection');
+            if (startButton) {
+                startButton.addEventListener('click', startInspection);
+            }
+
+            // Listener para el botón de refrescar datos
+            const refreshButton = document.getElementById('refresh-data-btn');
+            if (refreshButton) {
+                refreshButton.addEventListener('click', function () {
+                    console.log('Actualizando listas de vehículos, asesores y odómetros...');
+
+                    limpiarFormulario();
+
+                    // Recargar las listas
+                    loadVehicles();
+                    loadAdvisors();
+                    loadOdometros();
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

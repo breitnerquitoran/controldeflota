@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración - Inspección Vehicular</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="console.css">
+    <style>
+        /* Encabezado, tablas, formularios y modales vienen de console.css
+           (.data-console). Aquí queda solo lo propio de esta pantalla. */
+
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto 32px;
+            padding: 0;
+        }
+
+        .page-header .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* ---------- Pestañas ---------- */
+        /* Subrayado en lugar de pastilla rellena: pesa menos y deja
+           claro que son secciones de la misma tabla. */
+        .nav-tabs {
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 0;
+            gap: 2px;
+        }
+
+        .nav-tabs .nav-link {
+            border: none;
+            border-bottom: 2px solid transparent;
+            border-radius: 0;
+            padding: 9px 16px;
+            font-size: 0.8125rem;
+            font-weight: 550;
+            color: var(--muted-foreground);
+            background: transparent;
+            margin-right: 0;
+            transition: color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .nav-tabs .nav-link i {
+            margin-right: 6px;
+            font-size: 0.75rem;
+        }
+
+        .nav-tabs .nav-link:hover {
+            background: transparent;
+            color: var(--foreground);
+            border-bottom-color: var(--border-strong);
+        }
+
+        .nav-tabs .nav-link.active {
+            background: transparent;
+            color: var(--brand-primary-800);
+            border-bottom-color: var(--brand-primary);
+        }
+
+        /* ---------- Celdas propias ---------- */
+        .placa-cell {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            font-size: 0.8125rem;
+            color: var(--brand-primary-800);
+        }
+
+        .vehicle-type-badge {
+            padding: 3px 9px;
+            border-radius: 5px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: capitalize;
+            display: inline-block;
+        }
+
+        .vehicle-type-auto {
+            background-color: var(--brand-primary-050);
+            color: var(--brand-primary-800);
+        }
+
+        .vehicle-type-moto {
+            background-color: var(--brand-accent-050);
+            color: var(--brand-accent-700);
+        }
+
+        /* Placas dadas de alta por un movimiento de visita */
+        .vehicle-type-visita {
+            background-color: var(--surface-2);
+            color: var(--muted-foreground);
+        }
+
+        .nombre-cell {
+            font-weight: 550;
+            color: var(--foreground);
+        }
+
+        .email-cell {
+            color: var(--muted-foreground);
+            font-size: 0.78125rem;
+        }
+
+        .id-cell {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+        }
+
+        /* ---------- Vencimiento de documentos ---------- */
+        /* Un documento pasa a ámbar 30 días antes de caducar y a rojo en los
+           últimos 15 días o cuando ya venció. */
+        .doc-list {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .doc-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            white-space: nowrap;
+            width: fit-content;
+        }
+
+        .doc-chip .doc-fecha {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-weight: 550;
+        }
+
+        .doc-ok      { background: #e6f6ed; color: #157a43; }
+        .doc-aviso   { background: #fdf1e0; color: #9a5d00; }
+        .doc-critico { background: #fdeaea; color: #b3272b; }
+        .doc-vencido { background: #b3272b; color: #fff; }
+        .doc-sin     { background: var(--surface-2); color: var(--muted-foreground); }
+
+        .doc-resumen {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+        }
+
+        .doc-resumen strong {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .doc-resumen .critico { color: #b3272b; }
+        .doc-resumen .aviso { color: #9a5d00; }
+
+        /* ---------- Bloques del formulario ---------- */
+        .form-section {
+            margin-top: 22px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .form-section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted-foreground);
+            margin-bottom: 14px;
+        }
+
+        .form-section-title i {
+            color: var(--brand-primary);
+        }
+
+        .form-hint {
+            font-size: 0.6875rem;
+            color: var(--muted-foreground);
+            margin-top: 4px;
+        }
+
+        /* ---------- Botones ---------- */
+        .btn-primary {
+            background: var(--brand-primary-700);
+            border: 1px solid var(--brand-primary-700);
+            border-radius: var(--radius-sm);
+            padding: 9px 18px;
+            font-size: 0.8125rem;
+            font-weight: 550;
+            transition: background-color 0.15s ease;
+        }
+
+        .btn-primary:hover {
+            background: var(--brand-primary-800);
+            border-color: var(--brand-primary-800);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background-color: var(--surface);
+            border: 1px solid var(--border-strong);
+            color: var(--foreground);
+            border-radius: var(--radius-sm);
+            padding: 9px 18px;
+            font-size: 0.8125rem;
+            font-weight: 550;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--surface-2);
+            border-color: var(--border-strong);
+            color: var(--foreground);
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            border: 1px solid var(--danger-color);
+            border-radius: var(--radius-sm);
+            padding: 9px 18px;
+            font-size: 0.8125rem;
+            font-weight: 550;
+        }
+
+        /* ---------- Formulario del modal ---------- */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group-text {
+            background-color: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-right: none;
+            border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+            color: var(--muted-foreground);
+            font-size: 0.8125rem;
+        }
+
+        .input-group .form-control,
+        .input-group .form-select {
+            border-left: none;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            border: 1px solid var(--border-strong);
+            border-left: none;
+            padding: 8px 12px;
+        }
+
+        .input-group:focus-within .input-group-text {
+            border-color: var(--brand-primary);
+        }
+
+        /* ---------- Historial del vehículo ---------- */
+        .hist-resumen {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 22px;
+        }
+
+        .hist-dato {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+        }
+
+        .hist-num {
+            display: block;
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1.1;
+            color: var(--foreground);
+        }
+
+        .hist-lbl {
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted-foreground);
+        }
+
+        .hist-seccion {
+            margin-bottom: 24px;
+        }
+
+        .hist-titulo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted-foreground);
+            padding-bottom: 7px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hist-titulo i {
+            color: var(--brand-primary);
+        }
+
+        .hist-enlace {
+            margin-left: auto;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: none;
+            letter-spacing: 0;
+            color: var(--brand-primary-800);
+            text-decoration: none;
+        }
+
+        .hist-tabla {
+            width: 100%;
+            font-size: 0.8125rem;
+            border-collapse: collapse;
+        }
+
+        .hist-tabla th {
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted-foreground);
+            text-align: left;
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border-strong);
+            white-space: nowrap;
+        }
+
+        .hist-tabla td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .hist-tabla tbody tr:hover {
+            background: var(--brand-primary-050);
+        }
+
+        .hist-mono {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.78125rem;
+        }
+
+        .hist-muted {
+            color: var(--muted-foreground);
+            font-size: 0.75rem;
+        }
+
+        .hist-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .hist-entrada     { background: #e6f6ed; color: #157a43; }
+        .hist-salida      { background: var(--brand-accent-050); color: var(--brand-accent-700); }
+        .hist-entrada_mantenimiento,
+        .hist-salida_mantenimiento { background: #fdf1e0; color: #9a5d00; }
+        .hist-entrada_visita,
+        .hist-salida_visita { background: var(--brand-primary-050); color: var(--brand-primary-800); }
+        .hist-danos       { background: #fdf1e0; color: #9a5d00; }
+        .hist-preventivo  { background: #e6f6ed; color: #157a43; }
+        .hist-correctivo  { background: #fdeaea; color: #b3272b; }
+        .hist-lavado      { background: var(--brand-primary-050); color: var(--brand-primary-800); }
+        .hist-pintado     { background: var(--brand-accent-050); color: var(--brand-accent-700); }
+        .hist-pendiente   { background: #fdf1e0; color: #9a5d00; }
+        .hist-en_proceso  { background: var(--brand-primary-050); color: var(--brand-primary-800); }
+        .hist-finalizado  { background: #e6f6ed; color: #157a43; }
+        .hist-anulado     { background: #eef1f5; color: #55636f; }
+
+        .hist-vacio {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted-foreground);
+        }
+
+        .hist-vacio i {
+            font-size: 1.5rem;
+            color: var(--border-strong);
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .hist-resumen {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body class="data-console">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-car-side"></i> Inspecciones Vehiculares
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="fas fa-home"></i> Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="historico.html">
+                            <i class="fas fa-history"></i> Histórico
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="odometros.html">
+                            <i class="fas fa-tachometer-alt"></i> Odómetros
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="maestranza.html">
+                            <i class="fas fa-screwdriver-wrench"></i> Maestranza
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="admin.html">
+                            <i class="fas fa-cogs"></i> Administración
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="admin-container">
+            <div class="page-header">
+                <div class="header-row">
+                    <div>
+                        <h1 class="page-title">Administración</h1>
+                        <p class="page-subtitle">Vehículos y asesores registrados en el sistema</p>
+                    </div>
+                    <a href="index.html" class="back-link">
+                        <i class="fas fa-arrow-left me-2"></i>Volver al inicio
+                    </a>
+                </div>
+            </div>
+
+            <!-- Pestañas de navegación -->
+            <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="vehiculos-tab" data-bs-toggle="tab" data-bs-target="#vehiculos" type="button" role="tab">
+                        <i class="fas fa-car me-2"></i>Vehículos
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="asesores-tab" data-bs-toggle="tab" data-bs-target="#asesores" type="button" role="tab">
+                        <i class="fas fa-users me-2"></i>Asesores
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Contenido de las pestañas -->
+            <div class="tab-content" id="adminTabsContent">
+                <!-- Pestaña de Vehículos -->
+                <div class="tab-pane fade show active" id="vehiculos" role="tabpanel">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-car"></i>
+                                Gestión de Vehículos
+                            </h3>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="doc-resumen" id="resumenDocsVehiculos"></span>
+                                <button class="btn btn-new" onclick="showVehiculoModal()">
+                                    <i class="fas fa-plus me-2"></i>Nuevo Vehículo
+                                </button>
+                            </div>
+                        </div>
+                        <table id="vehiculosTable" class="display" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Placa</th>
+                                    <th>Tipo</th>
+                                    <th>Marca</th>
+                                    <th>Modelo</th>
+                                    <th>Documentos</th>
+                                    <th>Tarjeta prop.</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pestaña de Asesores -->
+                <div class="tab-pane fade" id="asesores" role="tabpanel">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-users"></i>
+                                Gestión de Asesores
+                            </h3>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="doc-resumen" id="resumenDocsAsesores"></span>
+                                <button class="btn btn-new" onclick="showAsesorModal()">
+                                    <i class="fas fa-plus me-2"></i>Nuevo Asesor
+                                </button>
+                            </div>
+                        </div>
+                        <table id="asesoresTable" class="display" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Email</th>
+                                    <th>Licencia auto</th>
+                                    <th>Licencia moto</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Vehículos -->
+    <div class="modal fade" id="vehiculoModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="vehiculoModalLabel">Nuevo Vehículo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="vehiculoForm">
+                        <input type="hidden" id="vehiculoId">
+                        <div class="form-group">
+                            <label for="placa">
+                                <i class="fas fa-id-card me-2"></i>Placa del Vehículo
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-hashtag"></i>
+                                </span>
+                                <input type="text" class="form-control" id="placa" placeholder="Ej: ABC-123" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="tipo">
+                                <i class="fas fa-car me-2"></i>Tipo de Vehículo
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-list"></i>
+                                </span>
+                                <select class="form-select" id="tipo" required>
+                                    <option value="">Seleccione un tipo</option>
+                                    <option value="auto">Auto</option>
+                                    <option value="moto">Moto</option>
+                                    <option value="camion">Camión</option>
+                                    <option value="otro">Otro</option>
+                                    <option value="visita">Visita (ajeno a la flota)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="marca">
+                                <i class="fas fa-industry me-2"></i>Marca
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-tag"></i>
+                                </span>
+                                <input type="text" class="form-control" id="marca" placeholder="Ej: Toyota, Honda, Ford" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="modelo">
+                                <i class="fas fa-cogs me-2"></i>Modelo
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-wrench"></i>
+                                </span>
+                                <input type="text" class="form-control" id="modelo" placeholder="Ej: Corolla, Civic, Focus" required>
+                            </div>
+                        </div>
+
+                        <!-- Documentos con fecha de caducidad: alimentan el
+                             semáforo de la tabla -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-file-shield"></i>Póliza de seguro
+                            </div>
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <div class="form-group">
+                                        <label for="polizaAseguradora">Aseguradora</label>
+                                        <input type="text" class="form-control" id="polizaAseguradora"
+                                            placeholder="Ej: Pacífico Seguros">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="polizaNumero">N° de póliza</label>
+                                        <input type="text" class="form-control" id="polizaNumero"
+                                            placeholder="Ej: 1234567">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="polizaRenovacion">Renovación</label>
+                                        <input type="date" class="form-control" id="polizaRenovacion">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-calendar-check"></i>SOAT y revisión técnica
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="soatVencimiento">Vigencia del SOAT</label>
+                                        <input type="date" class="form-control" id="soatVencimiento">
+                                        <div class="form-hint">Fecha en que vence la vigencia</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="revisionTecnicaVencimiento">Vigencia de revisión técnica</label>
+                                        <input type="date" class="form-control" id="revisionTecnicaVencimiento">
+                                        <div class="form-hint">Fecha en que vence la vigencia</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-id-card"></i>Tarjeta de propiedad
+                            </div>
+                            <div class="row">
+                                <div class="col-md-7">
+                                    <div class="form-group">
+                                        <label for="tarjetaPropiedadNumero">N° de tarjeta</label>
+                                        <input type="text" class="form-control" id="tarjetaPropiedadNumero"
+                                            placeholder="Ej: A-1234567">
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="form-group">
+                                        <label for="tarjetaPropiedadEmision">Fecha de emisión</label>
+                                        <input type="date" class="form-control" id="tarjetaPropiedadEmision">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveVehiculo()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Asesores -->
+    <div class="modal fade" id="asesorModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="asesorModalLabel">Nuevo Asesor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="asesorForm">
+                        <input type="hidden" id="asesorId">
+                        <div class="form-group">
+                            <label for="nombre">
+                                <i class="fas fa-user me-2"></i>Nombre Completo
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-id-badge"></i>
+                                </span>
+                                <input type="text" class="form-control" id="nombre" placeholder="Ej: Juan Pérez García" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">
+                                <i class="fas fa-envelope me-2"></i>Correo Electrónico
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-at"></i>
+                                </span>
+                                <input type="email" class="form-control" id="email" placeholder="Ej: juan.perez@empresa.com">
+                            </div>
+                        </div>
+
+                        <!-- Un asesor puede estar habilitado para auto, para
+                             moto o para ambos; cada licencia vence aparte -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-car-side"></i>Licencia de conducir — auto
+                            </div>
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <div class="form-group">
+                                        <label for="licenciaAutoNumero">N° de licencia</label>
+                                        <input type="text" class="form-control" id="licenciaAutoNumero"
+                                            placeholder="Ej: Q12345678">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="licenciaAutoCategoria">Categoría</label>
+                                        <input type="text" class="form-control" id="licenciaAutoCategoria"
+                                            placeholder="Ej: A-I">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="licenciaAutoVencimiento">Vencimiento</label>
+                                        <input type="date" class="form-control" id="licenciaAutoVencimiento">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fas fa-motorcycle"></i>Licencia de conducir — moto
+                            </div>
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <div class="form-group">
+                                        <label for="licenciaMotoNumero">N° de licencia</label>
+                                        <input type="text" class="form-control" id="licenciaMotoNumero"
+                                            placeholder="Ej: Q87654321">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="licenciaMotoCategoria">Categoría</label>
+                                        <input type="text" class="form-control" id="licenciaMotoCategoria"
+                                            placeholder="Ej: B-IIc">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="licenciaMotoVencimiento">Vencimiento</label>
+                                        <input type="date" class="form-control" id="licenciaMotoVencimiento">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveAsesor()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmDeleteText">¿Está seguro que desea eliminar este elemento?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteButton">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Historial del Vehículo -->
+    <div class="modal fade" id="historialModal" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="historialTitulo">Historial del vehículo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="historialCuerpo">
+                    <div class="text-center py-4">
+                        <div class="spinner-border" role="status"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let vehiculosTable, asesoresTable;
+        let currentDeleteAction = null;
+
+        // ============================================================
+        // Vencimiento de documentos
+        // ============================================================
+        // Ámbar desde 30 días antes de caducar, rojo desde 15, y rojo
+        // sólido una vez vencido.
+        const AVISO_DIAS = 30;
+        const CRITICO_DIAS = 15;
+
+        // Días que faltan para la fecha (negativo si ya pasó). La fecha llega
+        // como YYYY-MM-DD: se compara sin pasar por UTC para no perder un día.
+        function diasHasta(fecha) {
+            if (!fecha) return null;
+
+            const partes = String(fecha).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!partes) return null;
+
+            const objetivo = new Date(Number(partes[1]), Number(partes[2]) - 1, Number(partes[3]));
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
+            return Math.round((objetivo - hoy) / 86400000);
+        }
+
+        function claseVencimiento(dias) {
+            if (dias === null) return 'doc-sin';
+            if (dias < 0) return 'doc-vencido';
+            if (dias <= CRITICO_DIAS) return 'doc-critico';
+            if (dias <= AVISO_DIAS) return 'doc-aviso';
+            return 'doc-ok';
+        }
+
+        function textoVencimiento(dias) {
+            if (dias === null) return '';
+            if (dias < 0) return `venció hace ${Math.abs(dias)} d`;
+            if (dias === 0) return 'vence hoy';
+            if (dias <= AVISO_DIAS) return `faltan ${dias} d`;
+            return '';
+        }
+
+        function fechaCorta(fecha) {
+            const partes = String(fecha || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            return partes ? `${partes[3]}/${partes[2]}/${partes[1]}` : '—';
+        }
+
+        // Chip con la fecha y su situación. Sin fecha queda en gris.
+        function chipDocumento(etiqueta, fecha, icono) {
+            const dias = diasHasta(fecha);
+            const clase = claseVencimiento(dias);
+            const detalle = textoVencimiento(dias);
+
+            if (dias === null) {
+                return `<span class="doc-chip doc-sin" title="${etiqueta} sin registrar">` +
+                    `<i class="fas ${icono}"></i>${etiqueta}: —</span>`;
+            }
+
+            return `<span class="doc-chip ${clase}" title="${etiqueta}: ${fechaCorta(fecha)}">` +
+                `<i class="fas ${icono}"></i>${etiqueta}` +
+                `<span class="doc-fecha">${fechaCorta(fecha)}</span>` +
+                (detalle ? `<span>· ${detalle}</span>` : '') +
+                '</span>';
+        }
+
+        // Fecha más urgente del conjunto: es la que ordena la columna
+        function urgenciaDe(fechas) {
+            const dias = fechas.map(diasHasta).filter(d => d !== null);
+            return dias.length === 0 ? 99999 : Math.min(...dias);
+        }
+
+        // Cuenta cuántos documentos están vencidos y cuántos por vencer
+        function resumirVencimientos(filas, campos) {
+            let vencidos = 0;
+            let porVencer = 0;
+
+            filas.forEach(fila => {
+                campos.forEach(campo => {
+                    const dias = diasHasta(fila[campo]);
+                    if (dias === null) return;
+                    if (dias < 0) vencidos++;
+                    else if (dias <= AVISO_DIAS) porVencer++;
+                });
+            });
+
+            return { vencidos, porVencer };
+        }
+
+        function pintarResumen(elementoId, resumen) {
+            const elemento = document.getElementById(elementoId);
+            if (!elemento) return;
+
+            if (resumen.vencidos === 0 && resumen.porVencer === 0) {
+                elemento.innerHTML = '<span><i class="fas fa-circle-check me-1"></i>Documentos al día</span>';
+                return;
+            }
+
+            elemento.innerHTML =
+                (resumen.vencidos > 0
+                    ? `<span class="critico"><i class="fas fa-circle-exclamation me-1"></i>` +
+                      `<strong>${resumen.vencidos}</strong> vencido${resumen.vencidos === 1 ? '' : 's'}</span>`
+                    : '') +
+                (resumen.porVencer > 0
+                    ? `<span class="aviso"><i class="fas fa-triangle-exclamation me-1"></i>` +
+                      `<strong>${resumen.porVencer}</strong> por vencer</span>`
+                    : '');
+        }
+
+        // Licencia de conducir del asesor: número, categoría y vencimiento
+        function celdaLicencia(numero, categoria, vencimiento, icono) {
+            if (!numero && !vencimiento) {
+                return '<span class="doc-chip doc-sin">Sin registrar</span>';
+            }
+
+            const encabezado = numero
+                ? `<span class="id-cell">${numero}${categoria ? ' · ' + categoria : ''}</span>`
+                : `<span class="id-cell">${categoria || 'Sin número'}</span>`;
+
+            return '<div class="doc-list">' + encabezado +
+                chipDocumento('Vence', vencimiento, icono) + '</div>';
+        }
+
+        $(document).ready(function() {
+            // Inicializar DataTable para vehículos
+            vehiculosTable = $('#vehiculosTable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+                },
+                columns: [
+                    { 
+                        data: 'id',
+                        width: '60px',
+                        render: function(data) {
+                            return `<span class="id-cell">#${data}</span>`;
+                        }
+                    },
+                    { 
+                        data: 'placa',
+                        render: function(data) {
+                            return `<span class="placa-cell">${data}</span>`;
+                        }
+                    },
+                    { 
+                        data: 'tipo',
+                        render: function(data) {
+                            const typeClass = `vehicle-type-${data}`;
+                            const icon = data === 'auto' ? 'fa-car-side' : data === 'moto' ? 'fa-motorcycle' : data === 'camion' ? 'fa-truck' : data === 'visita' ? 'fa-user-clock' : 'fa-van-shuttle';
+                            return `<span class="vehicle-type-badge ${typeClass}"><i class="fas ${icon}"></i> ${data}</span>`;
+                        }
+                    },
+                    { data: 'marca' },
+                    { data: 'modelo' },
+                    {
+                        data: null,
+                        width: '260px',
+                        // Ordena por el documento más próximo a vencer
+                        render: function(data, type, row) {
+                            if (type !== 'display') {
+                                return urgenciaDe([
+                                    row.soat_vencimiento,
+                                    row.revision_tecnica_vencimiento,
+                                    row.poliza_renovacion
+                                ]);
+                            }
+
+                            return '<div class="doc-list">' +
+                                chipDocumento('SOAT', row.soat_vencimiento, 'fa-shield-halved') +
+                                chipDocumento('Rev. técnica', row.revision_tecnica_vencimiento, 'fa-clipboard-check') +
+                                chipDocumento('Póliza', row.poliza_renovacion, 'fa-file-shield') +
+                                '</div>';
+                        }
+                    },
+                    {
+                        data: null,
+                        width: '150px',
+                        render: function(data, type, row) {
+                            if (type !== 'display') return row.tarjeta_propiedad_numero || '';
+
+                            if (!row.tarjeta_propiedad_numero && !row.tarjeta_propiedad_emision) {
+                                return '<span class="doc-chip doc-sin">Sin registrar</span>';
+                            }
+
+                            return '<div class="doc-list">' +
+                                `<span class="id-cell">${row.tarjeta_propiedad_numero || 'Sin número'}</span>` +
+                                (row.tarjeta_propiedad_emision
+                                    ? `<span class="email-cell">Emitida ${fechaCorta(row.tarjeta_propiedad_emision)}</span>`
+                                    : '') +
+                                '</div>';
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        width: '170px',
+                        render: function(data, type, row) {
+                            // Sin saltos de línea: el espacio en blanco del template
+                            // se renderiza como líneas de texto y estira la fila.
+                            return `<div class="action-buttons">` +
+                                `<button class="btn btn-sm btn-outline-secondary btn-action" onclick="verHistorialVehiculo(${row.id})" title="Historial de ingresos, salidas y mantenimientos"><i class="fas fa-clock-rotate-left"></i></button>` +
+                                `<button class="btn btn-sm btn-primary btn-action" onclick="editVehiculo(${row.id})" title="Editar"><i class="fas fa-edit"></i></button>` +
+                                `<button class="btn btn-sm btn-danger btn-action" onclick="showDeleteConfirmation('vehiculo', ${row.id}, '${row.placa}')" title="Eliminar"><i class="fas fa-trash"></i></button>` +
+                                `</div>`;
+                        }
+                    }
+                ]
+            });
+
+            // Inicializar DataTable para asesores
+            asesoresTable = $('#asesoresTable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+                },
+                columns: [
+                    { 
+                        data: 'id',
+                        width: '60px',
+                        render: function(data) {
+                            return `<span class="id-cell">#${data}</span>`;
+                        }
+                    },
+                    { 
+                        data: 'nombre',
+                        render: function(data) {
+                            return `<span class="nombre-cell">${data}</span>`;
+                        }
+                    },
+                    {
+                        data: 'email',
+                        render: function(data) {
+                            return data
+                                ? `<span class="email-cell">${data}</span>`
+                                : '<span class="email-cell">Sin email</span>';
+                        }
+                    },
+                    {
+                        data: null,
+                        width: '180px',
+                        render: function(data, type, row) {
+                            if (type !== 'display') return urgenciaDe([row.licencia_auto_vencimiento]);
+                            return celdaLicencia(row.licencia_auto_numero, row.licencia_auto_categoria,
+                                row.licencia_auto_vencimiento, 'fa-car-side');
+                        }
+                    },
+                    {
+                        data: null,
+                        width: '180px',
+                        render: function(data, type, row) {
+                            if (type !== 'display') return urgenciaDe([row.licencia_moto_vencimiento]);
+                            return celdaLicencia(row.licencia_moto_numero, row.licencia_moto_categoria,
+                                row.licencia_moto_vencimiento, 'fa-motorcycle');
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        width: '150px',
+                        render: function(data, type, row) {
+                            return `<div class="action-buttons">` +
+                                `<button class="btn btn-sm btn-primary btn-action" onclick="editAsesor(${row.id})" title="Editar"><i class="fas fa-edit"></i></button>` +
+                                `<button class="btn btn-sm btn-danger btn-action" onclick="showDeleteConfirmation('asesor', ${row.id}, '${row.nombre}')" title="Eliminar"><i class="fas fa-trash"></i></button>` +
+                                `</div>`;
+                        }
+                    }
+                ]
+            });
+
+            loadVehiculos();
+            loadAsesores();
+        });
+
+        function loadVehiculos() {
+            fetch('/api/vehiculos')
+                .then(response => response.json())
+                .then(data => {
+                    vehiculosTable.clear();
+                    vehiculosTable.rows.add(data);
+                    vehiculosTable.draw();
+                    pintarResumen('resumenDocsVehiculos', resumirVencimientos(data, [
+                        'soat_vencimiento', 'revision_tecnica_vencimiento', 'poliza_renovacion'
+                    ]));
+                })
+                .catch(error => {
+                    console.error('Error al cargar vehículos:', error);
+                    alert('Error al cargar vehículos');
+                });
+        }
+
+        function loadAsesores() {
+            fetch('/api/asesores')
+                .then(response => response.json())
+                .then(data => {
+                    asesoresTable.clear();
+                    asesoresTable.rows.add(data);
+                    asesoresTable.draw();
+                    pintarResumen('resumenDocsAsesores', resumirVencimientos(data, [
+                        'licencia_auto_vencimiento', 'licencia_moto_vencimiento'
+                    ]));
+                })
+                .catch(error => {
+                    console.error('Error al cargar asesores:', error);
+                    alert('Error al cargar asesores');
+                });
+        }
+
+        function showVehiculoModal() {
+            document.getElementById('vehiculoForm').reset();
+            document.getElementById('vehiculoId').value = '';
+            document.getElementById('vehiculoModalLabel').textContent = 'Nuevo Vehículo';
+            $('#vehiculoModal').modal('show');
+        }
+
+        function showAsesorModal() {
+            document.getElementById('asesorForm').reset();
+            document.getElementById('asesorId').value = '';
+            document.getElementById('asesorModalLabel').textContent = 'Nuevo Asesor';
+            $('#asesorModal').modal('show');
+        }
+
+        function editVehiculo(id) {
+            fetch(`/api/vehiculos/${id}`)
+                .then(response => response.json())
+                .then(vehiculo => {
+                    document.getElementById('vehiculoId').value = vehiculo.id;
+                    document.getElementById('placa').value = vehiculo.placa;
+                    document.getElementById('tipo').value = vehiculo.tipo;
+                    document.getElementById('marca').value = vehiculo.marca;
+                    document.getElementById('modelo').value = vehiculo.modelo;
+
+                    // Las fechas llegan como YYYY-MM-DD (o ISO): input[type=date]
+                    // solo admite los diez primeros caracteres.
+                    const soloFecha = valor => (valor ? String(valor).slice(0, 10) : '');
+
+                    document.getElementById('polizaAseguradora').value = vehiculo.poliza_aseguradora || '';
+                    document.getElementById('polizaNumero').value = vehiculo.poliza_numero || '';
+                    document.getElementById('polizaRenovacion').value = soloFecha(vehiculo.poliza_renovacion);
+                    document.getElementById('soatVencimiento').value = soloFecha(vehiculo.soat_vencimiento);
+                    document.getElementById('revisionTecnicaVencimiento').value =
+                        soloFecha(vehiculo.revision_tecnica_vencimiento);
+                    document.getElementById('tarjetaPropiedadNumero').value =
+                        vehiculo.tarjeta_propiedad_numero || '';
+                    document.getElementById('tarjetaPropiedadEmision').value =
+                        soloFecha(vehiculo.tarjeta_propiedad_emision);
+
+                    document.getElementById('vehiculoModalLabel').textContent = 'Editar Vehículo';
+                    $('#vehiculoModal').modal('show');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al obtener datos del vehículo');
+                });
+        }
+
+        function editAsesor(id) {
+            fetch(`/api/asesores/${id}`)
+                .then(response => response.json())
+                .then(asesor => {
+                    document.getElementById('asesorId').value = asesor.id;
+                    document.getElementById('nombre').value = asesor.nombre;
+                    document.getElementById('email').value = asesor.email || '';
+
+                    const soloFecha = valor => (valor ? String(valor).slice(0, 10) : '');
+
+                    document.getElementById('licenciaAutoNumero').value = asesor.licencia_auto_numero || '';
+                    document.getElementById('licenciaAutoCategoria').value = asesor.licencia_auto_categoria || '';
+                    document.getElementById('licenciaAutoVencimiento').value =
+                        soloFecha(asesor.licencia_auto_vencimiento);
+                    document.getElementById('licenciaMotoNumero').value = asesor.licencia_moto_numero || '';
+                    document.getElementById('licenciaMotoCategoria').value = asesor.licencia_moto_categoria || '';
+                    document.getElementById('licenciaMotoVencimiento').value =
+                        soloFecha(asesor.licencia_moto_vencimiento);
+
+                    document.getElementById('asesorModalLabel').textContent = 'Editar Asesor';
+                    $('#asesorModal').modal('show');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al obtener datos del asesor');
+                });
+        }
+
+        function saveVehiculo() {
+            const form = document.getElementById('vehiculoForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const id = document.getElementById('vehiculoId').value;
+            const vehiculo = {
+                placa: document.getElementById('placa').value,
+                tipo: document.getElementById('tipo').value,
+                marca: document.getElementById('marca').value,
+                modelo: document.getElementById('modelo').value,
+                poliza_aseguradora: document.getElementById('polizaAseguradora').value,
+                poliza_numero: document.getElementById('polizaNumero').value,
+                poliza_renovacion: document.getElementById('polizaRenovacion').value,
+                soat_vencimiento: document.getElementById('soatVencimiento').value,
+                revision_tecnica_vencimiento: document.getElementById('revisionTecnicaVencimiento').value,
+                tarjeta_propiedad_numero: document.getElementById('tarjetaPropiedadNumero').value,
+                tarjeta_propiedad_emision: document.getElementById('tarjetaPropiedadEmision').value
+            };
+            
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/vehiculos/${id}` : '/api/vehiculos';
+            
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(vehiculo)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Error al guardar');
+                return response.json();
+            })
+            .then(data => {
+                $('#vehiculoModal').modal('hide');
+                loadVehiculos();
+                alert(id ? 'Vehículo actualizado' : 'Vehículo creado');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al guardar vehículo');
+            });
+        }
+
+        function saveAsesor() {
+            const form = document.getElementById('asesorForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const id = document.getElementById('asesorId').value;
+            const asesor = {
+                nombre: document.getElementById('nombre').value,
+                email: document.getElementById('email').value,
+                licencia_auto_numero: document.getElementById('licenciaAutoNumero').value,
+                licencia_auto_categoria: document.getElementById('licenciaAutoCategoria').value,
+                licencia_auto_vencimiento: document.getElementById('licenciaAutoVencimiento').value,
+                licencia_moto_numero: document.getElementById('licenciaMotoNumero').value,
+                licencia_moto_categoria: document.getElementById('licenciaMotoCategoria').value,
+                licencia_moto_vencimiento: document.getElementById('licenciaMotoVencimiento').value
+            };
+            
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/asesores/${id}` : '/api/asesores';
+            
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(asesor)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Error al guardar');
+                return response.json();
+            })
+            .then(data => {
+                $('#asesorModal').modal('hide');
+                loadAsesores();
+                alert(id ? 'Asesor actualizado' : 'Asesor creado');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al guardar asesor');
+            });
+        }
+
+        function showDeleteConfirmation(tipo, id, nombre) {
+            document.getElementById('confirmDeleteText').textContent = 
+                `¿Está seguro que desea eliminar ${tipo === 'vehiculo' ? 'el vehículo' : 'el asesor'} "${nombre}"?`;
+            currentDeleteAction = { tipo, id };
+            document.getElementById('confirmDeleteButton').onclick = confirmDelete;
+            $('#confirmDeleteModal').modal('show');
+        }
+
+        function confirmDelete() {
+            if (!currentDeleteAction) return;
+            
+            const { tipo, id } = currentDeleteAction;
+            const url = tipo === 'vehiculo' ? `/api/vehiculos/${id}` : `/api/asesores/${id}`;
+            
+            fetch(url, { method: 'DELETE' })
+            .then(response => {
+                if (!response.ok) throw new Error('Error al eliminar');
+                return response.json();
+            })
+            .then(data => {
+                $('#confirmDeleteModal').modal('hide');
+                if (tipo === 'vehiculo') {
+                    loadVehiculos();
+                } else {
+                    loadAsesores();
+                }
+                alert(`${tipo === 'vehiculo' ? 'Vehículo' : 'Asesor'} eliminado correctamente`);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al eliminar');
+            });
+        }
+
+        // ============================================================
+        // Historial del vehículo: ingresos, salidas y mantenimientos
+        // ============================================================
+        const ETIQUETAS_HISTORIAL = {
+            entrada: 'Ingreso', salida: 'Salida',
+            entrada_mantenimiento: 'Ingreso por mantenimiento',
+            salida_mantenimiento: 'Salida por mantenimiento',
+            entrada_visita: 'Ingreso de visita',
+            salida_visita: 'Salida de visita',
+            preventivo: 'Preventivo', correctivo: 'Correctivo',
+            lavado: 'Lavado', pintado: 'Pintado',
+            pendiente: 'Pendiente', en_proceso: 'En proceso',
+            finalizado: 'Finalizado', anulado: 'Anulado',
+            alta: 'Alta', media: 'Media', baja: 'Baja'
+        };
+
+        function escaparHtml(texto) {
+            return String(texto == null ? '' : texto)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function pillHistorial(valor) {
+            if (!valor) return '<span class="hist-muted">—</span>';
+            return `<span class="hist-pill hist-${valor}">${ETIQUETAS_HISTORIAL[valor] || valor}</span>`;
+        }
+
+        function fechaHistorial(valor, conHora) {
+            if (!valor) return '—';
+
+            // Fecha suelta (YYYY-MM-DD): el navegador la lee como UTC y en Perú
+            // retrocedería un día. Se formatea directamente.
+            const soloFecha = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (soloFecha) return `${soloFecha[3]}/${soloFecha[2]}/${soloFecha[1]}`;
+
+            const fecha = new Date(valor);
+            if (isNaN(fecha.getTime())) return '—';
+            const dia = fecha.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            if (!conHora) return dia;
+            return dia + ' <span class="hist-muted">' +
+                fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) + '</span>';
+        }
+
+        function montoHistorial(valor) {
+            return (Number(valor) || 0).toLocaleString('es-PE', {
+                minimumFractionDigits: 2, maximumFractionDigits: 2
+            });
+        }
+
+        function verHistorialVehiculo(id) {
+            const modal = new bootstrap.Modal(document.getElementById('historialModal'));
+            const cuerpo = document.getElementById('historialCuerpo');
+
+            document.getElementById('historialTitulo').textContent = 'Historial del vehículo';
+            cuerpo.innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div></div>';
+            modal.show();
+
+            fetch(`/api/vehiculos/${id}/historial`)
+                .then(async response => {
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({}));
+                        throw new Error(error.error || 'No se pudo cargar el historial');
+                    }
+                    return response.json();
+                })
+                .then(datos => renderHistorial(datos))
+                .catch(error => {
+                    console.error('Error al cargar el historial:', error);
+                    cuerpo.innerHTML =
+                        `<div class="hist-vacio"><i class="fas fa-triangle-exclamation"></i>` +
+                        `<h6>No se pudo cargar el historial</h6><p>${escaparHtml(error.message)}</p></div>`;
+                });
+        }
+
+        function renderHistorial(datos) {
+            const v = datos.vehiculo;
+            document.getElementById('historialTitulo').textContent =
+                `Historial · ${v.placa} — ${v.marca} ${v.modelo}`;
+
+            const inspecciones = datos.inspecciones || [];
+            const mantenimientos = datos.mantenimientos || [];
+            const totalDanos = inspecciones.reduce((suma, i) => suma + (i.total_danos || 0), 0);
+            const costoTotal = mantenimientos.reduce((suma, m) => suma + (Number(m.costo_total) || 0), 0);
+
+            const resumen =
+                '<div class="hist-resumen">' +
+                `<div class="hist-dato"><span class="hist-num">${inspecciones.length}</span><span class="hist-lbl">Ingresos y salidas</span></div>` +
+                `<div class="hist-dato"><span class="hist-num">${totalDanos}</span><span class="hist-lbl">Daños detectados</span></div>` +
+                `<div class="hist-dato"><span class="hist-num">${mantenimientos.length}</span><span class="hist-lbl">Mantenimientos</span></div>` +
+                `<div class="hist-dato"><span class="hist-num">${montoHistorial(costoTotal)}</span><span class="hist-lbl">Costo acumulado</span></div>` +
+                '</div>';
+
+            const filasInspecciones = inspecciones.length === 0
+                ? '<tr><td colspan="6" class="hist-muted text-center py-3">Sin movimientos registrados</td></tr>'
+                : inspecciones.map(i =>
+                    '<tr>' +
+                    `<td class="hist-mono">${fechaHistorial(i.fecha, true)}</td>` +
+                    `<td>${pillHistorial(i.tipo_entrada)}</td>` +
+                    `<td class="hist-mono">${i.odometro != null ? Number(i.odometro).toLocaleString('es-PE') + ' km' : '—'}</td>` +
+                    `<td>${escaparHtml(i.asesor_nombre)}</td>` +
+                    `<td class="hist-mono">${i.total_piezas}</td>` +
+                    `<td class="hist-mono">${i.total_danos > 0 ? `<span class="hist-pill hist-danos">${i.total_danos}</span>` : '0'}</td>` +
+                    '</tr>').join('');
+
+            const filasMantenimientos = mantenimientos.length === 0
+                ? '<tr><td colspan="7" class="hist-muted text-center py-3">' +
+                  (datos.modulo_listo === false
+                      ? 'El módulo de mantenimientos aún no está habilitado en la base de datos'
+                      : 'Sin mantenimientos registrados') + '</td></tr>'
+                : mantenimientos.map(m =>
+                    '<tr>' +
+                    `<td class="hist-mono">#${m.id}</td>` +
+                    `<td>${pillHistorial(m.tipo)}</td>` +
+                    `<td>${pillHistorial(m.estado)}</td>` +
+                    `<td class="hist-mono">${fechaHistorial(m.fecha_programada)}</td>` +
+                    `<td>${m.responsable ? escaparHtml(m.responsable) : '<span class="hist-muted">—</span>'}</td>` +
+                    `<td class="hist-mono">${m.total_items || 0}</td>` +
+                    `<td class="hist-mono">${montoHistorial(m.costo_total)}</td>` +
+                    '</tr>').join('');
+
+            document.getElementById('historialCuerpo').innerHTML =
+                resumen +
+                '<div class="hist-seccion">' +
+                '<div class="hist-titulo"><i class="fas fa-right-left"></i>Ingresos y salidas</div>' +
+                '<table class="hist-tabla"><thead><tr>' +
+                '<th>Fecha</th><th>Movimiento</th><th>Odómetro</th><th>Asesor</th><th>Piezas</th><th>Daños</th>' +
+                `</tr></thead><tbody>${filasInspecciones}</tbody></table>` +
+                '</div>' +
+                '<div class="hist-seccion">' +
+                '<div class="hist-titulo"><i class="fas fa-screwdriver-wrench"></i>Mantenimientos' +
+                '<a href="maestranza.html" class="hist-enlace">Ir a maestranza <i class="fas fa-arrow-right"></i></a></div>' +
+                '<table class="hist-tabla"><thead><tr>' +
+                '<th>Orden</th><th>Tipo</th><th>Estado</th><th>Programada</th><th>Responsable</th><th>Insumos</th><th>Costo</th>' +
+                `</tr></thead><tbody>${filasMantenimientos}</tbody></table>` +
+                '</div>';
+        }
+    </script>
+</body>
+</html>

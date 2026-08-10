@@ -1,0 +1,25 @@
+node_modules/
+
+# Variables de entorno (nunca subir credenciales)
+.env
+.env.local
+.env.*.local
+
+# Base de datos local y respaldos
+flota.db
+*.db.corrupto.bak
+
+# Logs
+*.log
+
+# Herramientas locales de Claude Code (no forman parte del proyecto)
+.claude/
+
+# Pruebas sueltas y versiones anteriores que quedaron en el directorio
+test-*.html
+test_car.html
+test-supabase.js
+debug-moto.html
+moto-fixed.html
+app.js
+database.js
