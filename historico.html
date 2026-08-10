@@ -318,7 +318,7 @@
                             <h6>Información de la Inspección</h6>
                             <ul class="list-group">
                                 <li class="list-group-item"><strong>Fecha:</strong> <span id="detalleFecha"></span></li>
-                                <li class="list-group-item"><strong>Asesor:</strong> <span id="detalleAsesor"></span></li>
+                                <li class="list-group-item"><strong id="detalleAsesorLabel">Asesor:</strong> <span id="detalleAsesor"></span></li>
                                 <li class="list-group-item"><strong>Tipo:</strong> <span id="detalleTipo"></span></li>
                             </ul>
                         </div>
@@ -421,7 +421,7 @@
                                 <div class="form-control-plaintext" id="editVehiculoInfo"></div>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Asesor</label>
+                                <label class="form-label" id="editAsesorLabel">Asesor</label>
                                 <div class="form-control-plaintext" id="editAsesorInfo"></div>
                             </div>
                         </div>
@@ -479,6 +479,20 @@
             entrada_visita: 'Ingreso de visita',
             salida_visita: 'Salida de visita'
         };
+
+        // Los movimientos de visita no llevan asesor de la flota: responde el
+        // propio visitante, registrado con su nombre y su documento.
+        function esMovimientoDeVisita(tipo) {
+            return tipo === 'entrada_visita' || tipo === 'salida_visita';
+        }
+
+        // Quién responde por el movimiento: el asesor o el visitante
+        function nombreResponsable(registro) {
+            if (esMovimientoDeVisita(registro.tipo_entrada)) {
+                return registro.visitante_nombre || 'Visitante sin registrar';
+            }
+            return registro.asesor_nombre || 'Desconocido';
+        }
 
         // Al cargar la página
         document.addEventListener('DOMContentLoaded', function() {
@@ -631,9 +645,15 @@
                         }
                     },
                     {
-                        data: 'asesor_nombre',
-                        render: function(data) {
-                            return data || 'Desconocido';
+                        data: null,
+                        render: function(row, type) {
+                            const nombre = nombreResponsable(row);
+                            if (type !== 'display' || !esMovimientoDeVisita(row.tipo_entrada)) {
+                                return nombre;
+                            }
+                            // En una visita se distingue de un asesor y se ve su DNI
+                            const dni = row.visitante_dni ? ` · DNI ${row.visitante_dni}` : '';
+                            return `${nombre} <span class="cell-muted">(visitante${dni})</span>`;
                         }
                     },
                     {
@@ -851,13 +871,16 @@
                 const vehiculoPlaca = inspeccion.vehiculo_placa || 'Desconocido';
                 const vehiculoMarca = inspeccion.vehiculo_marca || 'Desconocido';
                 const vehiculoModelo = inspeccion.vehiculo_modelo || '';
-                const asesorNombre = inspeccion.asesor_nombre || 'Desconocido';
                 const tipoEntrada = inspeccion.tipo_entrada || 'entrada';
-                
+                const esVisita = esMovimientoDeVisita(tipoEntrada);
+                const responsable = nombreResponsable(inspeccion) +
+                    (esVisita && inspeccion.visitante_dni ? ` — DNI ${inspeccion.visitante_dni}` : '');
+
                 document.getElementById('detalleVehiculoPlaca').textContent = vehiculoPlaca;
                 document.getElementById('detalleVehiculoModelo').textContent = `${vehiculoMarca} ${vehiculoModelo}`;
                 document.getElementById('detalleFecha').textContent = new Date(inspeccion.fecha).toLocaleString('es-ES');
-                document.getElementById('detalleAsesor').textContent = asesorNombre;
+                document.getElementById('detalleAsesorLabel').textContent = esVisita ? 'Visitante:' : 'Asesor:';
+                document.getElementById('detalleAsesor').textContent = responsable;
                 document.getElementById('detalleTipo').textContent =
                     ETIQUETAS_MOVIMIENTO[tipoEntrada] || tipoEntrada;
                 
@@ -1199,7 +1222,7 @@
             listadoDiv.innerHTML = registrosSeleccionados.map(reg => {
                 const fecha = new Date(reg.fecha).toLocaleDateString('es-ES');
                 const vehiculo = reg.vehiculo_placa || 'Desconocido';
-                const asesor = reg.asesor_nombre || 'Desconocido';
+                const asesor = nombreResponsable(reg);
                 return `<div class="d-flex justify-content-between border-bottom py-1">
                     <span><strong>${vehiculo}</strong> - ${fecha}</span>
                     <small class="text-muted">${asesor}</small>
@@ -1367,7 +1390,9 @@
                 // Información del vehículo y asesor (solo lectura)
                 const vehiculoInfo = `${inspeccionEnEdicion.vehiculo_placa || 'Desconocido'} - ${inspeccionEnEdicion.vehiculo_marca || ''} ${inspeccionEnEdicion.vehiculo_modelo || ''}`.trim();
                 document.getElementById('editVehiculoInfo').textContent = vehiculoInfo;
-                document.getElementById('editAsesorInfo').textContent = inspeccionEnEdicion.asesor_nombre || 'Desconocido';
+                document.getElementById('editAsesorLabel').textContent =
+                    esMovimientoDeVisita(inspeccionEnEdicion.tipo_entrada) ? 'Visitante' : 'Asesor';
+                document.getElementById('editAsesorInfo').textContent = nombreResponsable(inspeccionEnEdicion);
                 
                 // Llenar tabla de detalles
                 llenarTablaDetallesEdicion(inspeccionEnEdicion.detalles || []);

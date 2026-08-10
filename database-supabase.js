@@ -61,6 +61,54 @@ function agregarOpcionales(fila, datos, columnas) {
     return fila;
 }
 
+// Los movimientos de visita no llevan asesor de la flota: responde la persona
+// que llega, con su nombre y su documento. Las columnas las añade
+// supabase-visitas.sql; hasta entonces se trabaja sin ellas.
+const TIPOS_DE_VISITA = ['entrada_visita', 'salida_visita'];
+
+function esTipoDeVisita(tipo) {
+    return TIPOS_DE_VISITA.includes(String(tipo || ''));
+}
+
+let soportaVisitante = null;
+
+async function tieneColumnasVisitante() {
+    if (soportaVisitante !== null) return soportaVisitante;
+
+    const { error } = await supabase.from('inspecciones').select('visitante_nombre').limit(1);
+    soportaVisitante = !(error && faltaEnEsquema(error));
+
+    if (!soportaVisitante) {
+        console.warn('Faltan las columnas de visitante: ejecute supabase-visitas.sql en Supabase');
+    }
+
+    return soportaVisitante;
+}
+
+// Columnas de la inspección junto con el vehículo y el asesor relacionados
+function columnasInspeccion(conVisitante) {
+    return `
+        id,
+        fecha,
+        tipo_entrada,
+        odometro,
+        vehiculo_id,
+        asesor_id,
+        ${conVisitante ? 'visitante_nombre, visitante_dni,' : ''}
+        vehiculos:vehiculo_id (
+            id,
+            placa,
+            tipo,
+            marca,
+            modelo
+        ),
+        asesores:asesor_id (
+            id,
+            nombre
+        )
+    `;
+}
+
 // Ejecuta la operación con las columnas opcionales y, si la base todavía no
 // las tiene, la repite solo con las de siempre.
 async function conDegradacion(operacion, filaCompleta, columnasOpcionales) {
@@ -282,24 +330,44 @@ async function guardarInspeccion(inspeccion) {
             throw new Error('ID de vehículo no proporcionado');
         }
 
-        if (!inspeccion.asesor_id && inspeccion.asesor_id !== 0) {
-            throw new Error('ID de asesor no proporcionado');
-        }
-
         if (!inspeccion.tipo_entrada) {
             throw new Error('Tipo de entrada no proporcionado');
         }
 
+        // En una visita el responsable es el visitante: se pide su nombre y su
+        // documento en lugar del asesor.
+        const esVisita = esTipoDeVisita(inspeccion.tipo_entrada);
+        const visitanteNombre = String(inspeccion.visitante_nombre || '').trim();
+        const visitanteDni = String(inspeccion.visitante_dni || '').trim().toUpperCase();
+
+        if (esVisita) {
+            if (!visitanteNombre) {
+                throw new Error('Nombre del visitante no proporcionado');
+            }
+
+            if (!visitanteDni) {
+                throw new Error('DNI del visitante no proporcionado');
+            }
+        } else if (!inspeccion.asesor_id && inspeccion.asesor_id !== 0) {
+            throw new Error('ID de asesor no proporcionado');
+        }
+
         // Verificar que los ID sean números
         const vehiculoId = parseInt(inspeccion.vehiculo_id, 10);
-        const asesorId = parseInt(inspeccion.asesor_id, 10);
+        const asesorId = (inspeccion.asesor_id === null || inspeccion.asesor_id === undefined || inspeccion.asesor_id === '')
+            ? null
+            : parseInt(inspeccion.asesor_id, 10);
 
         if (isNaN(vehiculoId)) {
             throw new Error(`ID de vehículo inválido: "${inspeccion.vehiculo_id}"`);
         }
 
-        if (isNaN(asesorId)) {
+        if (asesorId !== null && isNaN(asesorId)) {
             throw new Error(`ID de asesor inválido: "${inspeccion.asesor_id}"`);
+        }
+
+        if (asesorId === null && !esVisita) {
+            throw new Error('ID de asesor no proporcionado');
         }
 
         // Validar que los detalles sean un array
@@ -329,27 +397,41 @@ async function guardarInspeccion(inspeccion) {
             throw new Error(`El vehículo con ID ${vehiculoId} no existe`);
         }
 
-        // Verificar que el asesor existe
-        const { data: asesor, error: asesorError } = await supabase
-            .from('asesores')
-            .select('id')
-            .eq('id', asesorId)
-            .single();
+        // Verificar que el asesor existe (las visitas no llevan asesor)
+        if (asesorId !== null) {
+            const { data: asesor, error: asesorError } = await supabase
+                .from('asesores')
+                .select('id')
+                .eq('id', asesorId)
+                .single();
 
-        if (asesorError || !asesor) {
-            throw new Error(`El asesor con ID ${asesorId} no existe`);
+            if (asesorError || !asesor) {
+                throw new Error(`El asesor con ID ${asesorId} no existe`);
+            }
+        }
+
+        const fila = {
+            fecha: inspeccion.fecha,
+            vehiculo_id: vehiculoId,
+            asesor_id: asesorId,
+            tipo_entrada: inspeccion.tipo_entrada,
+            odometro: inspeccion.odometro || null
+        };
+
+        if (esVisita) {
+            if (!await tieneColumnasVisitante()) {
+                throw new Error('La base de datos todavía no admite movimientos de visita: ' +
+                    'ejecute supabase-visitas.sql en el SQL Editor de Supabase');
+            }
+
+            fila.visitante_nombre = visitanteNombre;
+            fila.visitante_dni = visitanteDni;
         }
 
         // Insertar la inspección principal
         const { data: nuevaInspeccion, error: inspeccionError } = await supabase
             .from('inspecciones')
-            .insert([{
-                fecha: inspeccion.fecha,
-                vehiculo_id: vehiculoId,
-                asesor_id: asesorId,
-                tipo_entrada: inspeccion.tipo_entrada,
-                odometro: inspeccion.odometro || null
-            }])
+            .insert([fila])
             .select()
             .single();
 
@@ -399,28 +481,11 @@ async function obtenerInspecciones() {
         console.log('Iniciando obtenerInspecciones');
 
         // Obtener inspecciones con datos de vehículos y asesores
+        const conVisitante = await tieneColumnasVisitante();
         const inspecciones = await traerTodo(() =>
             supabase
                 .from('inspecciones')
-                .select(`
-                    id,
-                    fecha,
-                    tipo_entrada,
-                    odometro,
-                    vehiculo_id,
-                    asesor_id,
-                    vehiculos:vehiculo_id (
-                        id,
-                        placa,
-                        tipo,
-                        marca,
-                        modelo
-                    ),
-                    asesores:asesor_id (
-                        id,
-                        nombre
-                    )
-                `)
+                .select(columnasInspeccion(conVisitante))
                 .order('fecha', { ascending: false })
         );
 
@@ -455,6 +520,8 @@ async function obtenerInspecciones() {
             vehiculo_modelo: inspeccion.vehiculos?.modelo || 'Desconocido',
             asesor_id: inspeccion.asesor_id,
             asesor_nombre: inspeccion.asesores?.nombre || 'Desconocido',
+            visitante_nombre: inspeccion.visitante_nombre || null,
+            visitante_dni: inspeccion.visitante_dni || null,
             total_piezas: conteoPiezas[inspeccion.id] || 0,
             total_fotos: conteoFotos[inspeccion.id] || 0
         }));
@@ -469,27 +536,10 @@ async function obtenerInspecciones() {
 async function obtenerInspeccionDetallada(id) {
     try {
         // Obtener la inspección con datos de vehículo y asesor
+        const conVisitante = await tieneColumnasVisitante();
         const { data: inspeccion, error: inspeccionError } = await supabase
             .from('inspecciones')
-            .select(`
-                id,
-                fecha,
-                tipo_entrada,
-                odometro,
-                vehiculo_id,
-                asesor_id,
-                vehiculos:vehiculo_id (
-                    id,
-                    placa,
-                    tipo,
-                    marca,
-                    modelo
-                ),
-                asesores:asesor_id (
-                    id,
-                    nombre
-                )
-            `)
+            .select(columnasInspeccion(conVisitante))
             .eq('id', id)
             .single();
 
@@ -520,6 +570,8 @@ async function obtenerInspeccionDetallada(id) {
             vehiculo_modelo: inspeccion.vehiculos?.modelo || 'Desconocido',
             asesor_id: inspeccion.asesor_id,
             asesor_nombre: inspeccion.asesores?.nombre || 'Desconocido',
+            visitante_nombre: inspeccion.visitante_nombre || null,
+            visitante_dni: inspeccion.visitante_dni || null,
             detalles: detalles || []
         };
 
@@ -661,6 +713,7 @@ async function eliminarInspeccionesMultiples(ids) {
 
 module.exports = {
     traerTodo,
+    tieneColumnasVisitante,
     obtenerVehiculos,
     obtenerAsesores,
     agregarVehiculo,
