@@ -22,6 +22,35 @@ function faltaLaTabla(error) {
            texto.includes('42p01');
 }
 
+// Columnas que añade supabase-costos-roles.sql. Mientras no se haya ejecutado,
+// guardar una orden con ellas devolvería 42703 y la pantalla quedaría inservible:
+// se reintenta sin ellas, igual que hace database-supabase.js con los documentos.
+const CAMPOS_NUEVOS = [
+    'fecha_ejecucion', 'tiempo_trabajo', 'activo_descripcion',
+    'presupuesto', 'validado_por', 'validado_en'
+];
+
+function faltaLaColumna(error) {
+    const texto = `${error?.message || ''} ${error?.code || ''}`.toLowerCase();
+    return texto.includes('42703') ||
+           (texto.includes('column') && texto.includes('does not exist')) ||
+           texto.includes('schema cache');
+}
+
+async function conDegradacion(operacion, fila) {
+    try {
+        return await operacion(fila);
+    } catch (error) {
+        if (!faltaLaColumna(error)) throw error;
+
+        const filaBasica = { ...fila };
+        CAMPOS_NUEVOS.forEach(columna => delete filaBasica[columna]);
+
+        console.warn('Faltan columnas de supabase-costos-roles.sql: se guarda sin ellas');
+        return await operacion(filaBasica);
+    }
+}
+
 // ctx es un marcador por petición: un flag global se quedaría en "incompleto"
 // hasta reiniciar el servidor aunque ya se hubiera ejecutado el SQL.
 async function opcional(consulta, valorPorDefecto, ctx) {
@@ -163,17 +192,27 @@ async function actualizarSituacionDano(detalleId, datos) {
 
 const CAMPOS_MANTENIMIENTO = [
     'vehiculo_id', 'tipo', 'estado', 'prioridad', 'fecha_programada',
-    'fecha_inicio', 'fecha_fin', 'odometro', 'responsable', 'taller',
+    'fecha_inicio', 'fecha_fin', 'fecha_ejecucion', 'tiempo_trabajo',
+    'odometro', 'responsable', 'taller', 'activo_descripcion',
     'descripcion', 'diagnostico', 'trabajos_realizados', 'observaciones',
-    'costo_mano_obra', 'plan_id'
+    'costo_mano_obra', 'presupuesto', 'validado_por', 'validado_en', 'plan_id'
 ];
+
+// Cifras y validación: las escribe administración, nunca el taller. Cuando la
+// orden llega desde maestranza estos campos se descartan del payload antes de
+// tocar la base, así un cliente manipulado tampoco puede alterarlas.
+const CAMPOS_SOLO_ADMIN = ['costo_mano_obra', 'presupuesto', 'validado_por', 'validado_en'];
 
 // Deja solo los campos de la tabla y normaliza vacíos a null: PostgreSQL
 // rechaza '' en columnas de fecha y numéricas.
-function limpiarCampos(datos) {
+function limpiarCampos(datos, { sinFinanzas = false } = {}) {
     const fila = {};
 
-    CAMPOS_MANTENIMIENTO.forEach(campo => {
+    const permitidos = sinFinanzas
+        ? CAMPOS_MANTENIMIENTO.filter(campo => !CAMPOS_SOLO_ADMIN.includes(campo))
+        : CAMPOS_MANTENIMIENTO;
+
+    permitidos.forEach(campo => {
         if (datos[campo] === undefined) return;
         const valor = datos[campo];
         fila[campo] = (valor === '' || valor === null) ? null : valor;
@@ -181,10 +220,34 @@ function limpiarCampos(datos) {
 
     if (fila.vehiculo_id != null) fila.vehiculo_id = parseInt(fila.vehiculo_id, 10);
     if (fila.odometro != null) fila.odometro = parseInt(fila.odometro, 10) || null;
-    if (fila.costo_mano_obra != null) fila.costo_mano_obra = parseFloat(fila.costo_mano_obra) || 0;
+
+    // costo_mano_obra es NOT NULL: un campo vacío vale cero, no nulo.
+    // El presupuesto sí admite nulo, que es distinto de un presupuesto de cero.
+    if ('costo_mano_obra' in fila) fila.costo_mano_obra = parseFloat(fila.costo_mano_obra) || 0;
+    if (fila.presupuesto != null) fila.presupuesto = parseFloat(fila.presupuesto) || 0;
+    if (fila.tiempo_trabajo != null) fila.tiempo_trabajo = parseFloat(fila.tiempo_trabajo) || null;
     if (fila.plan_id != null) fila.plan_id = parseInt(fila.plan_id, 10) || null;
 
+    // Una orden apunta a un vehículo de la flota o a un activo descrito a mano
+    if (fila.activo_descripcion != null) {
+        fila.activo_descripcion = String(fila.activo_descripcion).trim() || null;
+    }
+
     return fila;
+}
+
+// Toda orden necesita un objeto de trabajo: placa de la flota o, para las
+// herramientas del taller y los servicios a terceros, una descripción libre.
+function exigirObjetoDeTrabajo(datos) {
+    const tieneVehiculo = datos.vehiculo_id !== undefined &&
+        datos.vehiculo_id !== null && datos.vehiculo_id !== '';
+    const tieneActivo = String(datos.activo_descripcion || '').trim() !== '';
+
+    if (!tieneVehiculo && !tieneActivo) {
+        throw new Error('Debe indicar el vehículo o describir el activo o cliente atendido');
+    }
+
+    return tieneVehiculo;
 }
 
 // Al cerrar una orden nacida de una rutina preventiva, esa rutina avanza a
@@ -193,17 +256,22 @@ async function avanzarRutina(mantenimientoId) {
     try {
         const { data: orden } = await supabase
             .from('mantenimientos')
-            .select('plan_id, odometro, fecha_fin')
+            .select('plan_id, odometro, fecha_ejecucion, fecha_fin')
             .eq('id', mantenimientoId)
             .single();
 
         if (!orden || !orden.plan_id || orden.odometro == null) return;
 
+        // La rutina avanza desde el día en que se hizo el trabajo. Antes ese dato
+        // era fecha_fin; ahora el formulario registra la fecha de ejecución, y
+        // las órdenes antiguas siguen valiéndose de la que ya tenían.
+        const diaDelServicio = orden.fecha_ejecucion || orden.fecha_fin || new Date().toISOString();
+
         await supabase
             .from('plan_preventivo')
             .update({
                 ultimo_servicio_km: orden.odometro,
-                ultimo_servicio_fecha: (orden.fecha_fin || new Date().toISOString()).slice(0, 10),
+                ultimo_servicio_fecha: String(diaDelServicio).slice(0, 10),
                 updated_at: new Date().toISOString()
             })
             .eq('id', orden.plan_id);
@@ -220,12 +288,86 @@ function normalizarInsumos(insumos, mantenimientoId) {
     return insumos
         .filter(i => i && String(i.descripcion || '').trim() !== '')
         .map(i => ({
+            // El id viaja de ida y vuelta para poder casar cada línea con la
+            // guardada y no perder su costo al reeditar la orden.
+            id: parseInt(i.id, 10) || null,
             mantenimiento_id: mantenimientoId,
             descripcion: String(i.descripcion).trim(),
             cantidad: parseFloat(i.cantidad) || 0,
             unidad: String(i.unidad || 'und').trim(),
             costo_unitario: parseFloat(i.costo_unitario) || 0
         }));
+}
+
+// Guarda las líneas de insumo conservando lo que ya estaba valorizado.
+//
+// Antes se borraba todo y se volvía a insertar; con dos perfiles eso significa
+// que cada vez que un técnico corrigiera una descripción se perderían los
+// costos que administración había cargado. Ahora las líneas se casan por id:
+// se actualizan las que siguen, se insertan las nuevas y se borran las que el
+// usuario quitó. Con sinFinanzas el costo entrante se ignora y prevalece el
+// guardado (0 en las líneas nuevas, a la espera de que administración valorice).
+async function guardarInsumos(mantenimientoId, insumos, { sinFinanzas = false } = {}) {
+    const id = parseInt(mantenimientoId, 10);
+    const entrantes = normalizarInsumos(insumos, id);
+
+    const { data: guardados, error: errorLectura } = await supabase
+        .from('mantenimiento_insumos')
+        .select('id, costo_unitario')
+        .eq('mantenimiento_id', id);
+
+    if (errorLectura) throw new Error(`Error al leer los insumos: ${errorLectura.message}`);
+
+    const costoPorId = (guardados || []).reduce((acc, linea) => {
+        acc[linea.id] = Number(linea.costo_unitario) || 0;
+        return acc;
+    }, {});
+
+    // Un id que no pertenece a esta orden se trata como línea nueva: así nadie
+    // puede arrastrar insumos de otra orden pasando su id en la petición.
+    const existentes = [];
+    const nuevos = [];
+
+    entrantes.forEach(linea => {
+        const esDeEstaOrden = linea.id != null && costoPorId[linea.id] !== undefined;
+
+        if (esDeEstaOrden) {
+            existentes.push({
+                ...linea,
+                costo_unitario: sinFinanzas ? costoPorId[linea.id] : linea.costo_unitario
+            });
+        } else {
+            const { id: descartado, ...sinId } = linea;
+            nuevos.push({ ...sinId, costo_unitario: sinFinanzas ? 0 : linea.costo_unitario });
+        }
+    });
+
+    if (existentes.length > 0) {
+        const { error } = await supabase.from('mantenimiento_insumos').upsert(existentes);
+        if (error) throw new Error(`Error al actualizar los insumos: ${error.message}`);
+    }
+
+    const idsVigentes = existentes.map(linea => linea.id);
+
+    if (nuevos.length > 0) {
+        const { data, error } = await supabase
+            .from('mantenimiento_insumos')
+            .insert(nuevos)
+            .select('id');
+
+        if (error) throw new Error(`Error al guardar los insumos: ${error.message}`);
+        (data || []).forEach(linea => idsVigentes.push(linea.id));
+    }
+
+    // Lo que el usuario quitó de la tabla desaparece
+    let borrado = supabase.from('mantenimiento_insumos').delete().eq('mantenimiento_id', id);
+
+    if (idsVigentes.length > 0) {
+        borrado = borrado.not('id', 'in', `(${idsVigentes.join(',')})`);
+    }
+
+    const { error: errorBorrado } = await borrado;
+    if (errorBorrado) throw new Error(`Error al quitar los insumos: ${errorBorrado.message}`);
 }
 
 function calcularTotales(mantenimiento, insumos) {
@@ -269,7 +411,9 @@ async function obtenerMantenimientos() {
         return {
             mantenimientos: mantenimientos.map(m => ({
                 ...m,
-                vehiculo_placa: m.vehiculos?.placa || 'Desconocido',
+                // Las herramientas del taller y los trabajos a terceros no
+                // tienen placa: en su lugar se muestra el activo atendido.
+                vehiculo_placa: m.vehiculos?.placa || m.activo_descripcion || 'Sin asignar',
                 vehiculo_tipo: m.vehiculos?.tipo || '',
                 vehiculo_marca: m.vehiculos?.marca || '',
                 vehiculo_modelo: m.vehiculos?.modelo || '',
@@ -314,7 +458,8 @@ async function obtenerMantenimiento(id) {
 
         return {
             ...mantenimiento,
-            vehiculo_placa: mantenimiento.vehiculos?.placa || 'Desconocido',
+            vehiculo_placa: mantenimiento.vehiculos?.placa ||
+                mantenimiento.activo_descripcion || 'Sin asignar',
             vehiculo_marca: mantenimiento.vehiculos?.marca || '',
             vehiculo_modelo: mantenimiento.vehiculos?.modelo || '',
             insumos: insumos || [],
@@ -328,29 +473,30 @@ async function obtenerMantenimiento(id) {
     }
 }
 
-async function crearMantenimiento(datos) {
+async function crearMantenimiento(datos, opciones = {}) {
     try {
-        if (!datos.vehiculo_id) throw new Error('Debe indicar el vehículo');
+        const conVehiculo = exigirObjetoDeTrabajo(datos);
         if (!datos.tipo) throw new Error('Debe indicar el tipo de mantenimiento');
 
-        const fila = limpiarCampos(datos);
-        if (isNaN(fila.vehiculo_id)) throw new Error(`Vehículo inválido: "${datos.vehiculo_id}"`);
+        const fila = limpiarCampos(datos, opciones);
 
-        const { data: creado, error } = await supabase
-            .from('mantenimientos')
-            .insert([fila])
-            .select()
-            .single();
+        if (conVehiculo && isNaN(fila.vehiculo_id)) {
+            throw new Error(`Vehículo inválido: "${datos.vehiculo_id}"`);
+        }
 
-        if (error) throw new Error(`Error al crear el mantenimiento: ${error.message}`);
+        const creado = await conDegradacion(async (filaAGuardar) => {
+            const { data, error } = await supabase
+                .from('mantenimientos')
+                .insert([filaAGuardar])
+                .select()
+                .single();
 
-        const insumos = normalizarInsumos(datos.insumos, creado.id);
-        if (insumos.length > 0) {
-            const { error: errorInsumos } = await supabase
-                .from('mantenimiento_insumos')
-                .insert(insumos);
+            if (error) throw error;
+            return data;
+        }, fila);
 
-            if (errorInsumos) throw new Error(`Error al guardar los insumos: ${errorInsumos.message}`);
+        if (Array.isArray(datos.insumos) && datos.insumos.length > 0) {
+            await guardarInsumos(creado.id, datos.insumos, opciones);
         }
 
         // Si la orden nace de un daño de inspección, queda vinculada
@@ -369,35 +515,30 @@ async function crearMantenimiento(datos) {
     }
 }
 
-async function actualizarMantenimiento(id, datos) {
+async function actualizarMantenimiento(id, datos, opciones = {}) {
     try {
-        const fila = limpiarCampos(datos);
+        // Solo se comprueba el objeto de trabajo si la petición lo toca: hay
+        // ediciones parciales (cerrar la orden desde la bandeja de daños) que
+        // no reenvían el vehículo.
+        if (datos.vehiculo_id !== undefined || datos.activo_descripcion !== undefined) {
+            exigirObjetoDeTrabajo(datos);
+        }
+
+        const fila = limpiarCampos(datos, opciones);
         fila.updated_at = new Date().toISOString();
 
-        const { error } = await supabase
-            .from('mantenimientos')
-            .update(fila)
-            .eq('id', id);
+        await conDegradacion(async (filaAGuardar) => {
+            const { error } = await supabase
+                .from('mantenimientos')
+                .update(filaAGuardar)
+                .eq('id', id);
 
-        if (error) throw new Error(`Error al actualizar el mantenimiento: ${error.message}`);
+            if (error) throw error;
+        }, fila);
 
-        // Los insumos se reemplazan por completo cuando vienen en la petición
+        // Las líneas se sincronizan conservando lo ya valorizado
         if (Array.isArray(datos.insumos)) {
-            const { error: errorBorrado } = await supabase
-                .from('mantenimiento_insumos')
-                .delete()
-                .eq('mantenimiento_id', id);
-
-            if (errorBorrado) throw new Error(`Error al reemplazar insumos: ${errorBorrado.message}`);
-
-            const insumos = normalizarInsumos(datos.insumos, parseInt(id, 10));
-            if (insumos.length > 0) {
-                const { error: errorInsercion } = await supabase
-                    .from('mantenimiento_insumos')
-                    .insert(insumos);
-
-                if (errorInsercion) throw new Error(`Error al guardar los insumos: ${errorInsercion.message}`);
-            }
+            await guardarInsumos(id, datos.insumos, opciones);
         }
 
         // Al cerrar la orden, los daños que la originaron quedan atendidos
@@ -546,5 +687,8 @@ module.exports = {
     crearMantenimiento,
     actualizarMantenimiento,
     eliminarMantenimiento,
-    obtenerHistorialVehiculo
+    obtenerHistorialVehiculo,
+
+    // Se expone solo para las pruebas del guardado de repuestos
+    __pruebas: { guardarInsumos, limpiarCampos, exigirObjetoDeTrabajo }
 };

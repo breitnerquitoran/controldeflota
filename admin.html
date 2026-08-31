@@ -10,7 +10,11 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <!-- Exportación del reporte económico en PDF (mismos módulos que maestranza) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="app.css">
+    <script src="auth.js"></script>
     <link rel="stylesheet" href="console.css">
     <style>
         /* Encabezado, tablas, formularios y modales vienen de console.css
@@ -267,6 +271,117 @@
             border-color: var(--brand-primary);
         }
 
+        /* ---------- Reporte económico ---------- */
+        /* Las proporciones se leen con barras en HTML: el proyecto no carga
+           ninguna librería de gráficos y para este corte no hace falta. */
+        .eco-filtros {
+            margin-bottom: 16px;
+        }
+
+        .eco-atajos {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+
+        .eco-atajos button {
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--muted-foreground);
+            border-radius: 999px;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .eco-atajos button:hover {
+            border-color: var(--brand-primary);
+            color: var(--brand-primary-800);
+        }
+
+        .eco-resumen {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .eco-nota {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+            margin: 0 0 12px;
+        }
+
+        .eco-tabla {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8125rem;
+        }
+
+        .eco-tabla th {
+            text-align: left;
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted-foreground);
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .eco-tabla td {
+            padding: 9px 10px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .eco-tabla tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .eco-monto {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .eco-barra {
+            height: 8px;
+            min-width: 90px;
+            background: var(--surface-2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .eco-barra span {
+            display: block;
+            height: 100%;
+            background: var(--brand-primary);
+            border-radius: 4px;
+        }
+
+        .eco-barra.acento span {
+            background: var(--brand-accent);
+        }
+
+        .eco-vacio {
+            padding: 26px;
+            text-align: center;
+            color: var(--muted-foreground);
+            font-size: 0.875rem;
+        }
+
+        .eco-desvio {
+            font-weight: 600;
+        }
+
+        .eco-desvio.ok    { color: #157a43; }
+        .eco-desvio.aviso { color: #9a5d00; }
+        .eco-desvio.malo  { color: #b3272b; }
+
         /* ---------- Historial del vehículo ---------- */
         .hist-resumen {
             display: grid;
@@ -482,6 +597,16 @@
                         <i class="fas fa-users me-2"></i>Asesores
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="servicios-tab" data-bs-toggle="tab" data-bs-target="#servicios" type="button" role="tab">
+                        <i class="fas fa-clipboard-list me-2"></i>Plantillas de servicio
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="economico-tab" data-bs-toggle="tab" data-bs-target="#economico" type="button" role="tab">
+                        <i class="fas fa-chart-column me-2"></i>Económico
+                    </button>
+                </li>
             </ul>
 
             <!-- Contenido de las pestañas -->
@@ -547,6 +672,119 @@
                             </thead>
                             <tbody></tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Pestaña de Plantillas de servicio -->
+                <div class="tab-pane fade" id="servicios" role="tabpanel">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-clipboard-list"></i>
+                                Plantillas de servicio
+                            </h3>
+                            <button class="btn btn-new" onclick="showServicioModal()">
+                                <i class="fas fa-plus me-2"></i>Nueva plantilla
+                            </button>
+                        </div>
+                        <p class="eco-nota">
+                            Son las actividades frecuentes que el taller elige al registrar un servicio.
+                            Al aplicarlas se completan el tipo, la descripción y los repuestos habituales.
+                        </p>
+                        <table id="serviciosTable" class="display" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Tipo</th>
+                                    <th>Descripción sugerida</th>
+                                    <th>Repuestos</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pestaña Económica: inversión, gasto por tipo y presupuesto -->
+                <div class="tab-pane fade" id="economico" role="tabpanel">
+                    <div class="filters eco-filtros">
+                        <div class="row">
+                            <div class="col-md-2 mb-2">
+                                <label class="form-label" for="ecoDesde">Desde</label>
+                                <input type="date" id="ecoDesde" class="form-control">
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="form-label" for="ecoHasta">Hasta</label>
+                                <input type="date" id="ecoHasta" class="form-control">
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="ecoTipo">Tipo de atención</label>
+                                <select id="ecoTipo" class="form-select">
+                                    <option value="">Todos</option>
+                                    <option value="preventivo">Mantenimiento preventivo</option>
+                                    <option value="correctivo">Mantenimiento correctivo</option>
+                                    <option value="siniestro">Siniestros</option>
+                                    <option value="reparacion_herramienta">Reparación de herramientas</option>
+                                    <option value="servicio_terceros">Servicios a terceros</option>
+                                    <option value="lavado">Lavado</option>
+                                    <option value="pintado">Pintado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label" for="ecoVehiculo">Vehículo</label>
+                                <select id="ecoVehiculo" class="form-select">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 mb-2 d-flex align-items-end gap-2">
+                                <button class="btn btn-new w-100" onclick="cargarReporteEconomico()">
+                                    <i class="fas fa-filter me-2"></i>Aplicar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="eco-atajos">
+                            <button type="button" onclick="periodoRapido('mes')">Este mes</button>
+                            <button type="button" onclick="periodoRapido('trimestre')">Últimos 3 meses</button>
+                            <button type="button" onclick="periodoRapido('anio')">Este año</button>
+                            <button type="button" onclick="periodoRapido('todo')">Todo</button>
+                        </div>
+                    </div>
+
+                    <div class="eco-resumen" id="ecoResumen"></div>
+
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-car"></i>
+                                Inversión por vehículo o activo
+                            </h3>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="exportarReporteEconomico()">
+                                <i class="fas fa-file-pdf me-2"></i>Exportar PDF
+                            </button>
+                        </div>
+                        <div id="ecoPorVehiculo"></div>
+                    </div>
+
+                    <div class="table-container mt-3">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-layer-group"></i>
+                                Gasto por tipo de atención
+                            </h3>
+                        </div>
+                        <div id="ecoPorTipo"></div>
+                    </div>
+
+                    <div class="table-container mt-3">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-scale-balanced"></i>
+                                Presupuesto contra gasto real
+                            </h3>
+                        </div>
+                        <div id="ecoPresupuesto"></div>
                     </div>
                 </div>
             </div>
@@ -799,6 +1037,86 @@
         </div>
     </div>
 
+    <!-- Modal de Plantilla de servicio -->
+    <div class="modal fade" id="servicioModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="servicioModalTitulo">Nueva plantilla</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="servicioForm">
+                        <input type="hidden" id="servicioId">
+
+                        <div class="row">
+                            <div class="col-md-7 mb-3">
+                                <label class="form-label" for="servicioNombre">Nombre *</label>
+                                <input type="text" class="form-control" id="servicioNombre"
+                                       placeholder="Ej: Cambio de aceite" required>
+                            </div>
+                            <div class="col-md-5 mb-3">
+                                <label class="form-label" for="servicioTipo">Tipo de atención</label>
+                                <select class="form-select" id="servicioTipo">
+                                    <option value="">Sin tipo predefinido</option>
+                                    <option value="preventivo">Mantenimiento preventivo</option>
+                                    <option value="correctivo">Mantenimiento correctivo</option>
+                                    <option value="siniestro">Siniestros</option>
+                                    <option value="reparacion_herramienta">Reparación de herramientas</option>
+                                    <option value="servicio_terceros">Servicios a terceros</option>
+                                    <option value="lavado">Lavado</option>
+                                    <option value="pintado">Pintado</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="servicioDescripcion">Descripción sugerida</label>
+                            <textarea class="form-control" id="servicioDescripcion" rows="2"
+                                      placeholder="Texto que se propondrá al técnico"></textarea>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label">Repuestos habituales</label>
+                            <p class="eco-nota mb-2">
+                                Solo descripción, cantidad y unidad: el catálogo lo consulta también
+                                maestranza, así que no lleva costos.
+                            </p>
+                            <table class="table table-sm align-middle" id="servicioInsumos">
+                                <thead>
+                                    <tr>
+                                        <th style="width:55%">Descripción</th>
+                                        <th style="width:18%">Cantidad</th>
+                                        <th style="width:20%">Unidad</th>
+                                        <th style="width:7%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="servicioInsumosCuerpo"></tbody>
+                            </table>
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    onclick="agregarInsumoPlantilla()">
+                                <i class="fas fa-plus me-2"></i>Agregar repuesto
+                            </button>
+                        </div>
+
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" id="servicioActivo" checked>
+                            <label class="form-check-label" for="servicioActivo">
+                                Disponible para el taller
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveServicio()">
+                        <i class="fas fa-save me-2"></i>Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Confirmación -->
     <div class="modal fade" id="confirmDeleteModal" tabindex="-1">
         <div class="modal-dialog">
@@ -839,8 +1157,41 @@
     </div>
 
     <script>
-        let vehiculosTable, asesoresTable;
+        let vehiculosTable, asesoresTable, serviciosTable;
         let currentDeleteAction = null;
+        let vehiculos = [];
+        let servicios = [];
+        let reporteEconomico = null;
+
+        // Los siete tipos de atención del sistema, en un solo sitio
+        const TIPOS_ATENCION = {
+            preventivo: 'Mantenimiento preventivo',
+            correctivo: 'Mantenimiento correctivo',
+            siniestro: 'Siniestros',
+            reparacion_herramienta: 'Reparación de herramientas',
+            servicio_terceros: 'Servicios a terceros',
+            lavado: 'Lavado',
+            pintado: 'Pintado'
+        };
+
+        function escaparTexto(valor) {
+            return String(valor == null ? '' : valor)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Bootstrap 5 dejó de traer el plugin de jQuery, pero esta pantalla abre
+        // sus modales con $('#id').modal('show'). Se restituye el puente en un
+        // solo sitio en vez de reescribir cada llamada.
+        if (window.jQuery && !window.jQuery.fn.modal) {
+            window.jQuery.fn.modal = function (accion) {
+                return this.each(function () {
+                    const instancia = bootstrap.Modal.getOrCreateInstance(this);
+                    if (accion === 'hide') instancia.hide();
+                    else instancia.show();
+                });
+            };
+        }
 
         // ============================================================
         // Vencimiento de documentos
@@ -1105,20 +1456,80 @@
                 ]
             });
 
+            serviciosTable = $('#serviciosTable').DataTable({
+                pageLength: 25,
+                order: [[0, 'asc']],
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+                columns: [
+                    { data: 'nombre' },
+                    {
+                        data: 'tipo',
+                        render: function (tipo) {
+                            return tipo ? (TIPOS_ATENCION[tipo] || tipo) : '<span class="text-muted">—</span>';
+                        }
+                    },
+                    {
+                        data: 'descripcion_sugerida',
+                        render: function (texto) {
+                            return texto ? escaparTexto(texto) : '<span class="text-muted">—</span>';
+                        }
+                    },
+                    {
+                        data: 'insumos_sugeridos',
+                        width: '110px',
+                        render: function (insumos) {
+                            const total = Array.isArray(insumos) ? insumos.length : 0;
+                            return `<span class="badge bg-secondary">${total}</span>`;
+                        }
+                    },
+                    {
+                        data: 'activo',
+                        width: '110px',
+                        render: function (activo) {
+                            return activo === false
+                                ? '<span class="badge bg-secondary">Dada de baja</span>'
+                                : '<span class="badge bg-success">Disponible</span>';
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        width: '120px',
+                        render: function (data, type, row) {
+                            return '<div class="action-buttons">' +
+                                `<button class="btn btn-sm btn-primary btn-action" onclick="editServicio(${row.id})" title="Editar"><i class="fas fa-edit"></i></button>` +
+                                `<button class="btn btn-sm btn-danger btn-action" onclick="showDeleteConfirmation('servicio', ${row.id}, '${escaparTexto(row.nombre)}')" title="Eliminar"><i class="fas fa-trash"></i></button>` +
+                                '</div>';
+                        }
+                    }
+                ]
+            });
+
             loadVehiculos();
             loadAsesores();
+            loadServicios();
+
+            // El reporte económico se arma al abrir su pestaña, no antes:
+            // recorre todas las órdenes y no hace falta en la carga inicial.
+            document.getElementById('economico-tab').addEventListener('shown.bs.tab', function () {
+                if (!reporteEconomico) {
+                    periodoRapido('anio');
+                }
+            });
         });
 
         function loadVehiculos() {
             fetch('/api/vehiculos')
                 .then(response => response.json())
                 .then(data => {
+                    vehiculos = data;
                     vehiculosTable.clear();
                     vehiculosTable.rows.add(data);
                     vehiculosTable.draw();
                     pintarResumen('resumenDocsVehiculos', resumirVencimientos(data, [
                         'soat_vencimiento', 'revision_tecnica_vencimiento', 'poliza_renovacion'
                     ]));
+                    poblarSelectorEconomico();
                 })
                 .catch(error => {
                     console.error('Error al cargar vehículos:', error);
@@ -1306,9 +1717,19 @@
             });
         }
 
+        // Qué se elimina en cada caso: rótulo, ruta y recarga posterior
+        const BORRABLES = {
+            vehiculo: { rotulo: 'el vehículo', ruta: id => `/api/vehiculos/${id}`, recargar: () => loadVehiculos() },
+            asesor:   { rotulo: 'el asesor',   ruta: id => `/api/asesores/${id}`,  recargar: () => loadAsesores() },
+            servicio: { rotulo: 'la plantilla', ruta: id => `/api/catalogo-servicios/${id}`, recargar: () => loadServicios() }
+        };
+
         function showDeleteConfirmation(tipo, id, nombre) {
-            document.getElementById('confirmDeleteText').textContent = 
-                `¿Está seguro que desea eliminar ${tipo === 'vehiculo' ? 'el vehículo' : 'el asesor'} "${nombre}"?`;
+            const config = BORRABLES[tipo];
+            if (!config) return;
+
+            document.getElementById('confirmDeleteText').textContent =
+                `¿Está seguro que desea eliminar ${config.rotulo} "${nombre}"?`;
             currentDeleteAction = { tipo, id };
             document.getElementById('confirmDeleteButton').onclick = confirmDelete;
             $('#confirmDeleteModal').modal('show');
@@ -1316,27 +1737,133 @@
 
         function confirmDelete() {
             if (!currentDeleteAction) return;
-            
+
             const { tipo, id } = currentDeleteAction;
-            const url = tipo === 'vehiculo' ? `/api/vehiculos/${id}` : `/api/asesores/${id}`;
-            
-            fetch(url, { method: 'DELETE' })
+            const config = BORRABLES[tipo];
+            if (!config) return;
+
+            fetch(config.ruta(id), { method: 'DELETE' })
             .then(response => {
                 if (!response.ok) throw new Error('Error al eliminar');
                 return response.json();
             })
             .then(data => {
                 $('#confirmDeleteModal').modal('hide');
-                if (tipo === 'vehiculo') {
-                    loadVehiculos();
-                } else {
-                    loadAsesores();
-                }
-                alert(`${tipo === 'vehiculo' ? 'Vehículo' : 'Asesor'} eliminado correctamente`);
+                config.recargar();
+                alert('Registro eliminado correctamente');
             })
             .catch(error => {
                 console.error('Error:', error);
                 alert('Error al eliminar');
+            });
+        }
+
+        // ============================================================
+        // Plantillas de servicio
+        // ============================================================
+
+        function loadServicios() {
+            fetch('/api/catalogo-servicios')
+                .then(response => response.json())
+                .then(datos => {
+                    servicios = datos.plantillas || [];
+                    serviciosTable.clear();
+                    serviciosTable.rows.add(servicios);
+                    serviciosTable.draw();
+                })
+                .catch(error => {
+                    console.error('Error al cargar las plantillas de servicio:', error);
+                });
+        }
+
+        function agregarInsumoPlantilla(insumo) {
+            const fila = document.createElement('tr');
+            fila.innerHTML =
+                `<td><input type="text" class="form-control form-control-sm plantilla-descripcion" value="${escaparTexto(insumo?.descripcion)}" placeholder="Ej: Aceite 15W40"></td>` +
+                `<td><input type="number" class="form-control form-control-sm plantilla-cantidad" min="0" step="0.01" value="${insumo ? insumo.cantidad : 1}"></td>` +
+                `<td><input type="text" class="form-control form-control-sm plantilla-unidad" value="${escaparTexto(insumo?.unidad || 'und')}"></td>` +
+                '<td><button type="button" class="btn btn-sm btn-outline-danger"><i class="fas fa-times"></i></button></td>';
+
+            fila.querySelector('button').addEventListener('click', () => fila.remove());
+            document.getElementById('servicioInsumosCuerpo').appendChild(fila);
+        }
+
+        function leerInsumosPlantilla() {
+            return Array.from(document.querySelectorAll('#servicioInsumosCuerpo tr')).map(fila => ({
+                descripcion: fila.querySelector('.plantilla-descripcion').value,
+                cantidad: fila.querySelector('.plantilla-cantidad').value,
+                unidad: fila.querySelector('.plantilla-unidad').value
+            })).filter(i => i.descripcion.trim() !== '');
+        }
+
+        function showServicioModal() {
+            document.getElementById('servicioForm').reset();
+            document.getElementById('servicioId').value = '';
+            document.getElementById('servicioActivo').checked = true;
+            document.getElementById('servicioInsumosCuerpo').innerHTML = '';
+            document.getElementById('servicioModalTitulo').textContent = 'Nueva plantilla';
+            agregarInsumoPlantilla();
+            $('#servicioModal').modal('show');
+        }
+
+        function editServicio(id) {
+            const plantilla = servicios.find(s => String(s.id) === String(id));
+            if (!plantilla) return;
+
+            document.getElementById('servicioForm').reset();
+            document.getElementById('servicioId').value = plantilla.id;
+            document.getElementById('servicioNombre').value = plantilla.nombre || '';
+            document.getElementById('servicioTipo').value = plantilla.tipo || '';
+            document.getElementById('servicioDescripcion').value = plantilla.descripcion_sugerida || '';
+            document.getElementById('servicioActivo').checked = plantilla.activo !== false;
+            document.getElementById('servicioModalTitulo').textContent = 'Editar plantilla';
+
+            const cuerpo = document.getElementById('servicioInsumosCuerpo');
+            cuerpo.innerHTML = '';
+
+            const insumos = Array.isArray(plantilla.insumos_sugeridos) ? plantilla.insumos_sugeridos : [];
+            if (insumos.length > 0) insumos.forEach(agregarInsumoPlantilla);
+            else agregarInsumoPlantilla();
+
+            $('#servicioModal').modal('show');
+        }
+
+        function saveServicio() {
+            const id = document.getElementById('servicioId').value;
+            const nombre = document.getElementById('servicioNombre').value.trim();
+
+            if (!nombre) {
+                alert('El nombre de la plantilla es obligatorio');
+                return;
+            }
+
+            const datos = {
+                nombre,
+                tipo: document.getElementById('servicioTipo').value,
+                descripcion_sugerida: document.getElementById('servicioDescripcion').value,
+                insumos_sugeridos: leerInsumosPlantilla(),
+                activo: document.getElementById('servicioActivo').checked
+            };
+
+            fetch(id ? `/api/catalogo-servicios/${id}` : '/api/catalogo-servicios', {
+                method: id ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos)
+            })
+            .then(async response => {
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error || 'No se pudo guardar la plantilla');
+                }
+                return response.json();
+            })
+            .then(() => {
+                $('#servicioModal').modal('hide');
+                loadServicios();
+            })
+            .catch(error => {
+                console.error('Error al guardar la plantilla:', error);
+                alert(error.message);
             });
         }
 
@@ -1475,6 +2002,291 @@
                 '<th>Orden</th><th>Tipo</th><th>Estado</th><th>Programada</th><th>Responsable</th><th>Insumos</th><th>Costo</th>' +
                 `</tr></thead><tbody>${filasMantenimientos}</tbody></table>` +
                 '</div>';
+        }
+
+        // ============================================================
+        // Reporte económico
+        // ============================================================
+        // Seguimiento de la inversión por vehículo, del gasto por tipo de
+        // atención y del presupuesto contra el gasto real. Es información
+        // exclusiva de administración: el endpoint no está abierto a maestranza.
+
+        function poblarSelectorEconomico() {
+            const selector = document.getElementById('ecoVehiculo');
+            if (!selector) return;
+
+            const opciones = vehiculos
+                .slice()
+                .sort((a, b) => String(a.placa).localeCompare(String(b.placa)))
+                .map(v => `<option value="${v.id}">${escaparTexto(v.placa)} — ${escaparTexto(v.marca)} ${escaparTexto(v.modelo)}</option>`)
+                .join('');
+
+            selector.innerHTML = '<option value="">Todos</option>' + opciones;
+        }
+
+        function isoDeFecha(fecha) {
+            return fecha.toISOString().slice(0, 10);
+        }
+
+        function periodoRapido(rango) {
+            const hoy = new Date();
+            const desde = document.getElementById('ecoDesde');
+            const hasta = document.getElementById('ecoHasta');
+
+            if (rango === 'todo') {
+                desde.value = '';
+                hasta.value = '';
+            } else if (rango === 'mes') {
+                desde.value = isoDeFecha(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+                hasta.value = isoDeFecha(hoy);
+            } else if (rango === 'trimestre') {
+                desde.value = isoDeFecha(new Date(hoy.getFullYear(), hoy.getMonth() - 2, 1));
+                hasta.value = isoDeFecha(hoy);
+            } else {
+                desde.value = isoDeFecha(new Date(hoy.getFullYear(), 0, 1));
+                hasta.value = isoDeFecha(hoy);
+            }
+
+            cargarReporteEconomico();
+        }
+
+        function cargarReporteEconomico() {
+            const parametros = new URLSearchParams();
+            const desde = document.getElementById('ecoDesde').value;
+            const hasta = document.getElementById('ecoHasta').value;
+            const tipo = document.getElementById('ecoTipo').value;
+            const vehiculo = document.getElementById('ecoVehiculo').value;
+
+            if (desde) parametros.set('desde', desde);
+            if (hasta) parametros.set('hasta', hasta);
+            if (tipo) parametros.set('tipo', tipo);
+            if (vehiculo) parametros.set('vehiculo_id', vehiculo);
+
+            document.getElementById('ecoPorVehiculo').innerHTML =
+                '<div class="eco-vacio"><div class="spinner-border spinner-border-sm"></div></div>';
+
+            fetch(`/api/reportes/economico?${parametros.toString()}`)
+                .then(async response => {
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({}));
+                        throw new Error(error.error || 'No se pudo generar el reporte');
+                    }
+                    return response.json();
+                })
+                .then(datos => {
+                    reporteEconomico = datos;
+                    renderReporteEconomico(datos);
+                })
+                .catch(error => {
+                    console.error('Error al generar el reporte económico:', error);
+                    document.getElementById('ecoPorVehiculo').innerHTML =
+                        `<div class="eco-vacio">${escaparTexto(error.message)}</div>`;
+                });
+        }
+
+        function barra(valor, maximo, acento) {
+            const ancho = maximo > 0 ? Math.max(2, Math.round((valor / maximo) * 100)) : 0;
+            return `<div class="eco-barra${acento ? ' acento' : ''}"><span style="width:${ancho}%"></span></div>`;
+        }
+
+        function tablaProporcion(filas, etiquetaColumna, acento) {
+            if (filas.length === 0) {
+                return '<div class="eco-vacio">Sin órdenes en el periodo seleccionado</div>';
+            }
+
+            const maximo = Math.max(...filas.map(f => f.total));
+
+            const cuerpo = filas.map(f =>
+                '<tr>' +
+                `<td>${escaparTexto(f.etiqueta)}</td>` +
+                `<td class="eco-monto">${f.ordenes}</td>` +
+                `<td class="eco-monto">${f.horas ? f.horas.toLocaleString('es-PE') + ' h' : '—'}</td>` +
+                `<td class="eco-monto">${montoHistorial(f.insumos)}</td>` +
+                `<td class="eco-monto">${montoHistorial(f.mano_obra)}</td>` +
+                `<td class="eco-monto"><strong>${montoHistorial(f.total)}</strong></td>` +
+                `<td style="width:22%">${barra(f.total, maximo, acento)}</td>` +
+                '</tr>').join('');
+
+            return '<table class="eco-tabla"><thead><tr>' +
+                `<th>${etiquetaColumna}</th><th class="eco-monto">Órdenes</th><th class="eco-monto">Horas</th>` +
+                '<th class="eco-monto">Repuestos</th><th class="eco-monto">Mano de obra</th>' +
+                '<th class="eco-monto">Total</th><th>Participación</th>' +
+                `</tr></thead><tbody>${cuerpo}</tbody></table>`;
+        }
+
+        function claseDesvio(porcentaje) {
+            if (porcentaje <= 0) return 'ok';
+            if (porcentaje <= 10) return 'aviso';
+            return 'malo';
+        }
+
+        function tablaPresupuesto(filas) {
+            const conPresupuesto = filas.filter(f => f.presupuesto > 0);
+
+            if (conPresupuesto.length === 0) {
+                return '<div class="eco-vacio">Ninguna orden del periodo tiene presupuesto asignado</div>';
+            }
+
+            const cuerpo = conPresupuesto.map(f => {
+                const desvio = f.total - f.presupuesto;
+                const porcentaje = f.presupuesto > 0 ? (desvio / f.presupuesto) * 100 : 0;
+                const clase = claseDesvio(porcentaje);
+                const signo = desvio > 0 ? '+' : '';
+
+                return '<tr>' +
+                    `<td>${escaparTexto(f.etiqueta)}</td>` +
+                    `<td class="eco-monto">${montoHistorial(f.presupuesto)}</td>` +
+                    `<td class="eco-monto">${montoHistorial(f.total)}</td>` +
+                    `<td class="eco-monto eco-desvio ${clase}">${signo}${montoHistorial(desvio)}</td>` +
+                    `<td class="eco-monto eco-desvio ${clase}">${signo}${porcentaje.toFixed(1)} %</td>` +
+                    '</tr>';
+            }).join('');
+
+            return '<table class="eco-tabla"><thead><tr>' +
+                '<th>Vehículo o activo</th><th class="eco-monto">Presupuesto</th><th class="eco-monto">Gasto real</th>' +
+                '<th class="eco-monto">Desvío</th><th class="eco-monto">Desvío %</th>' +
+                `</tr></thead><tbody>${cuerpo}</tbody></table>`;
+        }
+
+        function renderReporteEconomico(datos) {
+            const t = datos.totales;
+
+            document.getElementById('ecoResumen').innerHTML =
+                '<div class="hist-dato">' +
+                `<span class="hist-num">${t.ordenes}</span><span class="hist-lbl">Órdenes</span></div>` +
+                '<div class="hist-dato">' +
+                `<span class="hist-num">${t.horas.toLocaleString('es-PE')}</span><span class="hist-lbl">Horas de trabajo</span></div>` +
+                '<div class="hist-dato">' +
+                `<span class="hist-num">${montoHistorial(t.insumos)}</span><span class="hist-lbl">Repuestos</span></div>` +
+                '<div class="hist-dato">' +
+                `<span class="hist-num">${montoHistorial(t.mano_obra)}</span><span class="hist-lbl">Mano de obra</span></div>` +
+                '<div class="hist-dato">' +
+                `<span class="hist-num">${montoHistorial(t.total)}</span><span class="hist-lbl">Inversión total</span></div>` +
+                '<div class="hist-dato">' +
+                `<span class="hist-num">${t.validadas} / ${t.ordenes}</span><span class="hist-lbl">Servicios validados</span></div>`;
+
+            document.getElementById('ecoPorVehiculo').innerHTML =
+                tablaProporcion(datos.por_vehiculo, 'Vehículo o activo', false);
+
+            document.getElementById('ecoPorTipo').innerHTML =
+                tablaProporcion(
+                    datos.por_tipo.map(f => ({ ...f, etiqueta: TIPOS_ATENCION[f.clave] || f.etiqueta })),
+                    'Tipo de atención', true);
+
+            document.getElementById('ecoPresupuesto').innerHTML = tablaPresupuesto(datos.por_vehiculo);
+        }
+
+        function exportarReporteEconomico() {
+            if (!reporteEconomico) {
+                alert('Genera primero el reporte con los filtros que necesites');
+                return;
+            }
+
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                alert('No se pudo cargar el generador de PDF. Revisa tu conexión.');
+                return;
+            }
+
+            const datos = reporteEconomico;
+            const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const hoy = new Date().toLocaleDateString('es-PE');
+
+            const periodo = [
+                datos.filtros.desde ? `desde ${fechaCorta(datos.filtros.desde)}` : null,
+                datos.filtros.hasta ? `hasta ${fechaCorta(datos.filtros.hasta)}` : null,
+                datos.filtros.tipo ? TIPOS_ATENCION[datos.filtros.tipo] || datos.filtros.tipo : null
+            ].filter(Boolean).join(' · ') || 'Todo el histórico';
+
+            doc.setFontSize(15);
+            doc.setTextColor(0, 151, 198);
+            doc.text('Reporte económico de flota y maestranza', 14, 15);
+
+            doc.setFontSize(9);
+            doc.setTextColor(108, 117, 125);
+            doc.text(`${periodo}   ·   Emitido el ${hoy}`, 14, 21);
+
+            const t = datos.totales;
+
+            doc.autoTable({
+                startY: 27,
+                head: [['Órdenes', 'Horas', 'Repuestos', 'Mano de obra', 'Inversión total', 'Presupuesto', 'Validadas']],
+                body: [[
+                    String(t.ordenes),
+                    t.horas.toLocaleString('es-PE'),
+                    montoHistorial(t.insumos),
+                    montoHistorial(t.mano_obra),
+                    montoHistorial(t.total),
+                    montoHistorial(t.presupuesto),
+                    `${t.validadas} / ${t.ordenes}`
+                ]],
+                styles: { fontSize: 9, cellPadding: 2.5, halign: 'right' },
+                headStyles: { fillColor: [0, 151, 198], textColor: 255, fontStyle: 'bold', halign: 'right' },
+                margin: { left: 14, right: 14 }
+            });
+
+            const seccion = (titulo, etiqueta, filas) => {
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 7,
+                    head: [[titulo, 'Órdenes', 'Horas', 'Repuestos', 'Mano de obra', 'Total']],
+                    body: filas.length > 0
+                        ? filas.map(f => [
+                            f.etiqueta,
+                            String(f.ordenes),
+                            f.horas ? `${f.horas.toLocaleString('es-PE')} h` : '—',
+                            montoHistorial(f.insumos),
+                            montoHistorial(f.mano_obra),
+                            montoHistorial(f.total)
+                        ])
+                        : [['Sin órdenes en el periodo', '', '', '', '', '']],
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    headStyles: { fillColor: [0, 151, 198], textColor: 255, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [246, 249, 251] },
+                    columnStyles: {
+                        1: { halign: 'right', cellWidth: 20 },
+                        2: { halign: 'right', cellWidth: 22 },
+                        3: { halign: 'right', cellWidth: 30 },
+                        4: { halign: 'right', cellWidth: 30 },
+                        5: { halign: 'right', cellWidth: 32, fontStyle: 'bold' }
+                    },
+                    margin: { left: 14, right: 14 }
+                });
+            };
+
+            seccion('Vehículo o activo', 'vehiculo', datos.por_vehiculo);
+            seccion('Tipo de atención', 'tipo',
+                datos.por_tipo.map(f => ({ ...f, etiqueta: TIPOS_ATENCION[f.clave] || f.etiqueta })));
+
+            const conPresupuesto = datos.por_vehiculo.filter(f => f.presupuesto > 0);
+
+            if (conPresupuesto.length > 0) {
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 7,
+                    head: [['Presupuesto contra gasto real', 'Presupuesto', 'Gasto real', 'Desvío', 'Desvío %']],
+                    body: conPresupuesto.map(f => {
+                        const desvio = f.total - f.presupuesto;
+                        const porcentaje = (desvio / f.presupuesto) * 100;
+                        const signo = desvio > 0 ? '+' : '';
+                        return [
+                            f.etiqueta,
+                            montoHistorial(f.presupuesto),
+                            montoHistorial(f.total),
+                            `${signo}${montoHistorial(desvio)}`,
+                            `${signo}${porcentaje.toFixed(1)} %`
+                        ];
+                    }),
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    headStyles: { fillColor: [0, 151, 198], textColor: 255, fontStyle: 'bold' },
+                    columnStyles: {
+                        1: { halign: 'right', cellWidth: 32 },
+                        2: { halign: 'right', cellWidth: 32 },
+                        3: { halign: 'right', cellWidth: 30 },
+                        4: { halign: 'right', cellWidth: 26 }
+                    },
+                    margin: { left: 14, right: 14 }
+                });
+            }
+
+            doc.save(`reporte-economico-${new Date().toISOString().slice(0, 10)}.pdf`);
         }
     </script>
 </body>

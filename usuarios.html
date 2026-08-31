@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuarios — Inspecciones Vehiculares</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="app.css">
+    <script src="auth.js"></script>
+
+    <style>
+        body {
+            background: var(--canvas);
+            min-height: 100vh;
+        }
+
+        .panel {
+            background: var(--surface);
+            border-radius: 15px;
+            box-shadow: var(--shadow-md);
+            padding: 22px;
+            margin-bottom: 18px;
+        }
+
+        .panel-cabecera {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .panel-cabecera h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--foreground);
+            margin: 0;
+        }
+
+        .panel-cabecera p {
+            margin: 2px 0 0;
+            font-size: .85rem;
+            color: var(--muted-foreground);
+        }
+
+        .tabla-usuarios th {
+            font-size: .78rem;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--muted-foreground);
+        }
+
+        .tabla-usuarios td {
+            vertical-align: middle;
+        }
+
+        .distintivo {
+            font-size: .75rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 999px;
+            display: inline-block;
+        }
+
+        .distintivo.admin {
+            background: rgba(226, 100, 163, .15);
+            color: #b53b7c;
+        }
+
+        .distintivo.usuario {
+            background: rgba(0, 151, 198, .13);
+            color: #026d8e;
+        }
+
+        .distintivo.maestranza {
+            background: rgba(154, 93, 0, .13);
+            color: #8a5300;
+        }
+
+        .distintivo.activo {
+            background: rgba(31, 157, 87, .14);
+            color: #157345;
+        }
+
+        .distintivo.inactivo {
+            background: rgba(122, 136, 149, .18);
+            color: #5b6b7b;
+        }
+
+        .acciones-fila {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .acciones-fila button {
+            border: 1px solid var(--border);
+            background: #fff;
+            color: var(--muted-foreground);
+            border-radius: 8px;
+            width: 34px;
+            height: 34px;
+            font-size: .82rem;
+            transition: all .15s;
+        }
+
+        .acciones-fila button:hover {
+            color: var(--brand-primary);
+            border-color: var(--brand-primary);
+        }
+
+        .acciones-fila button.peligro:hover {
+            color: var(--danger-color);
+            border-color: var(--danger-color);
+        }
+
+        .tarjeta-cuenta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tarjeta-cuenta .datos {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .tarjeta-cuenta .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--grad-brand);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .vacio {
+            text-align: center;
+            color: var(--muted-foreground);
+            padding: 26px 10px;
+            font-size: .9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <img src="logopa.png" alt="Pacífico Asiste"
+                    style="height: 34px; width: auto; background: white; border-radius: 5px; padding: 3px 5px;">
+                <span>Inspecciones Vehiculares</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html"><i class="fas fa-home"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="historico.html"><i class="fas fa-history"></i> Histórico</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="odometros.html"><i class="fas fa-tachometer-alt"></i> Odómetros</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="maestranza.html"><i class="fas fa-screwdriver-wrench"></i>
+                            Maestranza</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="admin.html"><i class="fas fa-cogs"></i> Administración</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-3 mb-5">
+        <!-- Mi cuenta -->
+        <div class="panel">
+            <div class="tarjeta-cuenta">
+                <div class="datos">
+                    <div class="avatar"><i class="fas fa-user"></i></div>
+                    <div>
+                        <div style="font-weight:600" id="mi-nombre">—</div>
+                        <div style="font-size:.85rem;color:var(--muted-foreground)" id="mi-usuario">—</div>
+                    </div>
+                </div>
+                <button class="btn btn-outline-primary" onclick="Auth.cambiarClave()">
+                    <i class="fas fa-key"></i> Cambiar mi clave
+                </button>
+            </div>
+        </div>
+
+        <!-- Usuarios del sistema -->
+        <div class="panel">
+            <div class="panel-cabecera">
+                <div>
+                    <h2><i class="fas fa-users"></i> Usuarios</h2>
+                    <p>El rol <strong>Usuario</strong> solo entra a inspecciones e histórico;
+                        <strong>Maestranza</strong> atiende el taller y los odómetros, sin ver costos ni
+                        presupuestos; <strong>Administración</strong> llega a todo, incluida la información
+                        económica y esta pantalla.
+                    </p>
+                    <p class="text-muted" style="font-size:.8125rem">
+                        Al cambiar el rol de alguien, esa persona deberá volver a iniciar sesión para que
+                        el nuevo permiso tenga efecto.
+                    </p>
+                </div>
+                <button class="btn btn-primary" id="boton-nuevo">
+                    <i class="fas fa-user-plus"></i> Nuevo usuario
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table tabla-usuarios align-middle">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Nombre</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Último ingreso</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo-tabla">
+                        <tr>
+                            <td colspan="6" class="vacio">Cargando usuarios…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alta y edición de usuario -->
+    <div class="modal fade" id="modal-usuario" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:15px">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-titulo">Nuevo usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="form-usuario">
+                    <div class="modal-body">
+                        <input type="hidden" id="campo-id">
+
+                        <div class="mb-3">
+                            <label class="form-label" for="campo-usuario">Usuario</label>
+                            <input type="text" class="form-control" id="campo-usuario" autocapitalize="none"
+                                spellcheck="false" placeholder="ej. jperez" required>
+                            <div class="form-text">Letras, números, punto, guion o guion bajo. No se puede cambiar
+                                después.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="campo-nombre">Nombre completo</label>
+                            <input type="text" class="form-control" id="campo-nombre" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="campo-rol">Rol</label>
+                            <select class="form-select" id="campo-rol">
+                                <option value="usuario">Usuario — inspecciones e histórico</option>
+                                <option value="maestranza">Maestranza — taller, sin información de costos</option>
+                                <option value="admin">Administración — acceso completo</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3" id="bloque-clave">
+                            <label class="form-label" for="campo-clave">Clave inicial</label>
+                            <input type="text" class="form-control" id="campo-clave" autocomplete="off">
+                            <div class="form-text">Mínimo 6 caracteres. La persona deberá cambiarla al entrar.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="boton-guardar">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const modalUsuario = new bootstrap.Modal(document.getElementById('modal-usuario'));
+        let usuarios = [];
+
+        const ETIQUETA_ROL = {
+            admin: 'Administración',
+            maestranza: 'Maestranza',
+            usuario: 'Usuario'
+        };
+
+        function escapar(texto) {
+            const caja = document.createElement('span');
+            caja.textContent = texto == null ? '' : texto;
+            return caja.innerHTML;
+        }
+
+        function fecha(valor) {
+            if (!valor) return '<span class="text-muted">Nunca</span>';
+            return new Date(valor).toLocaleString('es-PE', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        async function pedir(url, opciones) {
+            const respuesta = await fetch(url, opciones);
+            const cuerpo = await respuesta.json().catch(() => ({}));
+
+            if (!respuesta.ok) throw new Error(cuerpo.error || 'Error en la operación');
+            return cuerpo;
+        }
+
+        async function cargarUsuarios() {
+            const cuerpo = document.getElementById('cuerpo-tabla');
+
+            try {
+                usuarios = await pedir('/api/usuarios');
+            } catch (error) {
+                cuerpo.innerHTML = `<tr><td colspan="6" class="vacio text-danger">${escapar(error.message)}</td></tr>`;
+                return;
+            }
+
+            if (!usuarios.length) {
+                cuerpo.innerHTML = '<tr><td colspan="6" class="vacio">Todavía no hay usuarios registrados</td></tr>';
+                return;
+            }
+
+            const yo = Auth.usuario();
+
+            cuerpo.innerHTML = usuarios.map(u => `
+                <tr>
+                    <td>
+                        <strong>${escapar(u.usuario)}</strong>
+                        ${Number(u.id) === Number(yo.id) ? '<span class="text-muted"> (tú)</span>' : ''}
+                        ${u.debe_cambiar_clave ? '<div style="font-size:.75rem;color:var(--warning-color)"><i class="fas fa-triangle-exclamation"></i> Debe cambiar su clave</div>' : ''}
+                    </td>
+                    <td>${escapar(u.nombre)}</td>
+                    <td><span class="distintivo ${u.rol}">${ETIQUETA_ROL[u.rol] || u.rol}</span></td>
+                    <td><span class="distintivo ${u.activo ? 'activo' : 'inactivo'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+                    <td style="font-size:.85rem">${fecha(u.ultimo_ingreso)}</td>
+                    <td>
+                        <div class="acciones-fila">
+                            <button title="Editar" onclick="editar(${u.id})"><i class="fas fa-pen"></i></button>
+                            <button title="Asignar clave nueva" onclick="reiniciarClave(${u.id})"><i class="fas fa-key"></i></button>
+                            <button title="${u.activo ? 'Desactivar' : 'Activar'}" onclick="alternarEstado(${u.id})">
+                                <i class="fas fa-${u.activo ? 'user-slash' : 'user-check'}"></i>
+                            </button>
+                            <button class="peligro" title="Eliminar" onclick="eliminar(${u.id})"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function abrirNuevo() {
+            document.getElementById('modal-titulo').textContent = 'Nuevo usuario';
+            document.getElementById('form-usuario').reset();
+            document.getElementById('campo-id').value = '';
+            document.getElementById('campo-usuario').disabled = false;
+            document.getElementById('bloque-clave').style.display = '';
+            document.getElementById('campo-clave').required = true;
+            modalUsuario.show();
+        }
+
+        function editar(id) {
+            const u = usuarios.find(x => Number(x.id) === Number(id));
+            if (!u) return;
+
+            document.getElementById('modal-titulo').textContent = 'Editar usuario';
+            document.getElementById('campo-id').value = u.id;
+            document.getElementById('campo-usuario').value = u.usuario;
+            document.getElementById('campo-usuario').disabled = true;
+            document.getElementById('campo-nombre').value = u.nombre;
+            document.getElementById('campo-rol').value = u.rol;
+            document.getElementById('bloque-clave').style.display = 'none';
+            document.getElementById('campo-clave').required = false;
+            modalUsuario.show();
+        }
+
+        async function guardar(evento) {
+            evento.preventDefault();
+
+            const id = document.getElementById('campo-id').value;
+            const datos = {
+                nombre: document.getElementById('campo-nombre').value.trim(),
+                rol: document.getElementById('campo-rol').value
+            };
+
+            const boton = document.getElementById('boton-guardar');
+            boton.disabled = true;
+
+            try {
+                if (id) {
+                    await pedir(`/api/usuarios/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(datos)
+                    });
+                } else {
+                    datos.usuario = document.getElementById('campo-usuario').value.trim().toLowerCase();
+                    datos.clave = document.getElementById('campo-clave').value;
+
+                    await pedir('/api/usuarios', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(datos)
+                    });
+                }
+
+                modalUsuario.hide();
+                await cargarUsuarios();
+                Swal.fire({ icon: 'success', title: id ? 'Usuario actualizado' : 'Usuario creado', timer: 1600, showConfirmButton: false });
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'No se pudo guardar', text: error.message });
+            } finally {
+                boton.disabled = false;
+            }
+        }
+
+        async function reiniciarClave(id) {
+            const u = usuarios.find(x => Number(x.id) === Number(id));
+            if (!u) return;
+
+            const { value: clave } = await Swal.fire({
+                title: `Clave nueva para ${u.usuario}`,
+                input: 'text',
+                inputLabel: 'Mínimo 6 caracteres. Deberá cambiarla al entrar.',
+                showCancelButton: true,
+                confirmButtonText: 'Asignar',
+                cancelButtonText: 'Cancelar',
+                inputValidator: valor => (!valor || valor.length < 6) ? 'La clave debe tener al menos 6 caracteres' : undefined
+            });
+
+            if (!clave) return;
+
+            try {
+                await pedir(`/api/usuarios/${id}/clave`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ clave })
+                });
+
+                await cargarUsuarios();
+                Swal.fire({ icon: 'success', title: 'Clave asignada', text: `Entrégasela a ${u.nombre}: deberá cambiarla al ingresar.` });
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'No se pudo asignar', text: error.message });
+            }
+        }
+
+        async function alternarEstado(id) {
+            const u = usuarios.find(x => Number(x.id) === Number(id));
+            if (!u) return;
+
+            try {
+                await pedir(`/api/usuarios/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ activo: !u.activo })
+                });
+
+                await cargarUsuarios();
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'No se pudo cambiar el estado', text: error.message });
+            }
+        }
+
+        async function eliminar(id) {
+            const u = usuarios.find(x => Number(x.id) === Number(id));
+            if (!u) return;
+
+            const confirmacion = await Swal.fire({
+                icon: 'warning',
+                title: `¿Eliminar a ${u.usuario}?`,
+                text: 'Ya no podrá ingresar al sistema. Los movimientos que registró se conservan.',
+                showCancelButton: true,
+                confirmButtonText: 'Eliminar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#e5484d'
+            });
+
+            if (!confirmacion.isConfirmed) return;
+
+            try {
+                await pedir(`/api/usuarios/${id}`, { method: 'DELETE' });
+                await cargarUsuarios();
+                Swal.fire({ icon: 'success', title: 'Usuario eliminado', timer: 1600, showConfirmButton: false });
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'No se pudo eliminar', text: error.message });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const yo = Auth.usuario();
+            document.getElementById('mi-nombre').textContent = yo.nombre;
+            document.getElementById('mi-usuario').textContent = `${yo.usuario} · Administración`;
+
+            document.getElementById('boton-nuevo').addEventListener('click', abrirNuevo);
+            document.getElementById('form-usuario').addEventListener('submit', guardar);
+
+            cargarUsuarios();
+        });
+    </script>
+</body>
+
+</html>

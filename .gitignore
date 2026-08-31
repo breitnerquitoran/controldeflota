@@ -15,8 +15,11 @@ flota.db
 # Herramientas locales de Claude Code (no forman parte del proyecto)
 .claude/
 
-# Comunicaciones internas: llevan nombres de personas, no van al repositorio
+# Comunicaciones y documentos internos: llevan nombres de personas y
+# detalles de operacion que no corresponden a un repositorio publico
 correo-*.md
+solicitud_admin.md
+comite-operativo-flota.md
 
 # Pruebas sueltas y versiones anteriores que quedaron en el directorio
 test-*.html

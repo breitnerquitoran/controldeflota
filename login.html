@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingreso — Inspecciones Vehiculares</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="app.css">
+    <script>window.AUTH_PAGINA_PUBLICA = true;</script>
+    <script src="auth.js"></script>
+
+    <style>
+        body {
+            background: var(--canvas);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-caja {
+            width: 100%;
+            max-width: 420px;
+            background: var(--surface);
+            border-radius: 18px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        .login-cabecera {
+            background: var(--grad-brand);
+            color: #fff;
+            padding: 28px 30px 24px;
+            text-align: center;
+        }
+
+        .login-cabecera img {
+            height: 46px;
+            width: auto;
+            background: #fff;
+            border-radius: 8px;
+            padding: 5px 8px;
+            margin-bottom: 14px;
+        }
+
+        .login-cabecera h1 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .login-cabecera p {
+            margin: 4px 0 0;
+            font-size: .87rem;
+            opacity: .9;
+        }
+
+        .login-cuerpo {
+            padding: 28px 30px 30px;
+        }
+
+        .login-cuerpo label {
+            font-size: .82rem;
+            font-weight: 600;
+            color: var(--foreground);
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .login-cuerpo input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            margin-bottom: 18px;
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .login-cuerpo input:focus {
+            outline: none;
+            border-color: var(--brand-primary);
+            box-shadow: var(--ring);
+        }
+
+        .login-boton {
+            width: 100%;
+            border: 0;
+            border-radius: var(--border-radius);
+            background: var(--grad-brand);
+            color: #fff;
+            font-weight: 600;
+            font-size: 1rem;
+            padding: 13px;
+            cursor: pointer;
+            transition: transform .15s, box-shadow .15s;
+        }
+
+        .login-boton:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .login-boton:disabled {
+            opacity: .7;
+            cursor: progress;
+        }
+
+        .login-aviso {
+            display: none;
+            border-radius: var(--radius-sm);
+            padding: 11px 14px;
+            font-size: .87rem;
+            margin-bottom: 16px;
+        }
+
+        .login-aviso.error {
+            display: block;
+            background: #fdecec;
+            color: #a5221f;
+        }
+
+        .login-aviso.info {
+            display: block;
+            background: #e7f5fa;
+            color: #045c78;
+        }
+
+        .login-pie {
+            text-align: center;
+            font-size: .78rem;
+            color: var(--muted-foreground);
+            margin-top: 18px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-caja">
+        <div class="login-cabecera">
+            <img src="logopa.png" alt="Pacífico Asiste">
+            <h1>Inspecciones Vehiculares</h1>
+            <p>Ingresa con tu usuario para continuar</p>
+        </div>
+
+        <div class="login-cuerpo">
+            <div class="login-aviso" id="aviso"></div>
+
+            <form id="form-login" autocomplete="on">
+                <label for="usuario">Usuario</label>
+                <input type="text" id="usuario" name="usuario" autocomplete="username" autocapitalize="none"
+                    spellcheck="false" required autofocus>
+
+                <label for="clave">Clave</label>
+                <input type="password" id="clave" name="clave" autocomplete="current-password" required>
+
+                <button type="submit" class="login-boton" id="boton-entrar">
+                    <i class="fas fa-right-to-bracket"></i> Entrar
+                </button>
+            </form>
+
+            <div class="login-pie">
+                ¿Olvidaste tu clave? Pídele al administrador que te asigne una nueva.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const aviso = document.getElementById('aviso');
+        const boton = document.getElementById('boton-entrar');
+
+        function mostrarAviso(mensaje, tipo) {
+            aviso.className = 'login-aviso ' + (tipo || 'error');
+            aviso.textContent = mensaje;
+        }
+
+        // Se llegó aquí por una sesión caducada
+        if (new URLSearchParams(window.location.search).get('expirada')) {
+            mostrarAviso('Tu sesión terminó. Vuelve a ingresar.', 'info');
+        }
+
+        // Si ya hay sesión abierta, no tiene sentido pedirla de nuevo
+        const sesionAbierta = window.Auth && window.Auth.sesion();
+        if (sesionAbierta && sesionAbierta.token) {
+            window.location.replace(window.Auth.paginaInicial(sesionAbierta.usuario.rol));
+        }
+
+        document.getElementById('form-login').addEventListener('submit', async (evento) => {
+            evento.preventDefault();
+
+            const usuario = document.getElementById('usuario').value.trim();
+            const clave = document.getElementById('clave').value;
+
+            if (!usuario || !clave) {
+                return mostrarAviso('Escribe tu usuario y tu clave');
+            }
+
+            boton.disabled = true;
+            aviso.className = 'login-aviso';
+
+            try {
+                const respuesta = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario, clave })
+                });
+
+                const cuerpo = await respuesta.json();
+
+                if (!respuesta.ok) {
+                    throw new Error(cuerpo.error || 'No se pudo iniciar sesión');
+                }
+
+                window.Auth.guardar(cuerpo);
+                // Cada rol entra por su pantalla: maestranza al taller,
+                // administración a su consola y el resto al inicio.
+                window.location.replace(window.Auth.paginaInicial(cuerpo.usuario.rol));
+            } catch (error) {
+                mostrarAviso(error.message);
+                document.getElementById('clave').value = '';
+                document.getElementById('clave').focus();
+            } finally {
+                boton.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

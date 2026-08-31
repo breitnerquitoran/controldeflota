@@ -15,6 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="app.css">
+    <script src="auth.js"></script>
     <link rel="stylesheet" href="console.css">
     <style>
         /* Encabezado, tablas, formularios y modales vienen de console.css */
@@ -164,6 +165,13 @@
         .pill-lavado      { background: var(--brand-primary-050); color: var(--brand-primary-800); }
         .pill-pintado     { background: var(--brand-accent-050); color: var(--brand-accent-700); }
 
+        .pill-siniestro              { background: #fdeaea; color: #8e1f22; }
+        .pill-reparacion_herramienta { background: #fdf1e0; color: #9a5d00; }
+        .pill-servicio_terceros      { background: #ede9fb; color: #5b3fbe; }
+
+        .pill-validado    { background: #e6f6ed; color: #157a43; }
+        .pill-sin-validar { background: #eef1f5; color: #55636f; }
+
         .pill-alta        { background: #fdeaea; color: #b3272b; }
         .pill-media       { background: #fdf1e0; color: #9a5d00; }
         .pill-baja        { background: #eef1f5; color: #55636f; }
@@ -197,6 +205,94 @@
             color: var(--foreground);
             margin-bottom: 4px;
             display: block;
+        }
+
+        .campo-ayuda {
+            font-size: 0.6875rem;
+            color: var(--muted-foreground);
+            margin-top: 4px;
+            line-height: 1.35;
+        }
+
+        /* ---------- Buscador de vehículo ---------- */
+        .buscador-vehiculo {
+            position: relative;
+        }
+
+        .buscador-lista {
+            display: none;
+            position: absolute;
+            top: calc(100% + 2px);
+            left: 0;
+            right: 0;
+            z-index: 20;
+            max-height: 240px;
+            overflow-y: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-md);
+        }
+
+        .buscador-lista.abierta {
+            display: block;
+        }
+
+        .buscador-opcion {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.8125rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .buscador-opcion:last-child {
+            border-bottom: 0;
+        }
+
+        .buscador-opcion:hover,
+        .buscador-opcion.activa {
+            background: var(--brand-primary-050);
+        }
+
+        .buscador-opcion .placa {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--foreground);
+        }
+
+        .buscador-opcion .detalle {
+            color: var(--muted-foreground);
+            font-size: 0.75rem;
+        }
+
+        .buscador-opcion.nueva {
+            color: var(--brand-primary-800);
+            font-weight: 600;
+        }
+
+        .buscador-vacio {
+            padding: 8px 12px;
+            font-size: 0.8125rem;
+            color: var(--muted-foreground);
+        }
+
+        /* ---------- Validación administrativa ---------- */
+        .validacion-caja {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+        }
+
+        .validacion-estado {
+            font-size: 0.8125rem;
+            color: var(--muted-foreground);
+        }
+
+        .validacion-estado.validado {
+            color: #157a43;
+            font-weight: 600;
         }
 
         .modal-body textarea.form-control {
@@ -653,8 +749,11 @@
                                 <label class="form-label" for="filtroMantTipo">Tipo</label>
                                 <select id="filtroMantTipo" class="form-select">
                                     <option value="">Todos</option>
-                                    <option value="preventivo">Preventivo</option>
-                                    <option value="correctivo">Correctivo</option>
+                                    <option value="preventivo">Mantenimiento preventivo</option>
+                                    <option value="correctivo">Mantenimiento correctivo</option>
+                                    <option value="siniestro">Siniestros</option>
+                                    <option value="reparacion_herramienta">Reparación de herramientas</option>
+                                    <option value="servicio_terceros">Servicios a terceros</option>
                                     <option value="lavado">Lavado</option>
                                     <option value="pintado">Pintado</option>
                                 </select>
@@ -700,13 +799,14 @@
                             <thead>
                                 <tr>
                                     <th>Orden</th>
-                                    <th>Vehículo</th>
+                                    <th>Vehículo o activo</th>
                                     <th>Tipo</th>
                                     <th>Estado</th>
                                     <th>Prioridad</th>
                                     <th>Programada</th>
                                     <th>Responsable</th>
-                                    <th>Insumos</th>
+                                    <th>Repuestos</th>
+                                    <th>Tiempo</th>
                                     <th>Costo total</th>
                                     <th>Acciones</th>
                                 </tr>
@@ -809,22 +909,45 @@
                         <div class="form-section">
                             <div class="form-section-title">Datos generales</div>
                             <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="campo-label" for="campoVehiculo">Vehículo *</label>
-                                    <select id="campoVehiculo" class="form-select" required>
-                                        <option value="">Seleccione un vehículo</option>
+                                <div class="col-md-12 mb-3">
+                                    <label class="campo-label" for="campoPlantilla">Plantilla de servicio</label>
+                                    <select id="campoPlantilla" class="form-select">
+                                        <option value="">Sin plantilla — capturar a mano</option>
                                     </select>
+                                    <div class="campo-ayuda">Al elegir una, se completan el tipo, la descripción
+                                        y los repuestos habituales. Lo que ya hayas escrito se conserva.</div>
                                 </div>
-                                <div class="col-md-2 mb-3">
+                                <div class="col-md-4 mb-3">
+                                    <label class="campo-label" for="campoVehiculoBusqueda">Vehículo</label>
+                                    <div class="buscador-vehiculo">
+                                        <input type="text" id="campoVehiculoBusqueda" class="form-control"
+                                               placeholder="Placa, marca o modelo" autocomplete="off">
+                                        <input type="hidden" id="campoVehiculo">
+                                        <div id="campoVehiculoLista" class="buscador-lista"></div>
+                                    </div>
+                                    <div class="campo-ayuda">Escribe para buscar. Si la placa no existe,
+                                        podrás registrarla desde el mismo listado.</div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="campo-label" for="campoActivo">Activo o cliente</label>
+                                    <input type="text" id="campoActivo" class="form-control"
+                                           placeholder="Ej: Compresor del taller, Cliente XYZ">
+                                    <div class="campo-ayuda">Para reparación de herramientas y servicios a
+                                        terceros, cuando el trabajo no es sobre un vehículo de la flota.</div>
+                                </div>
+                                <div class="col-md-4 mb-3">
                                     <label class="campo-label" for="campoTipo">Tipo *</label>
                                     <select id="campoTipo" class="form-select" required>
-                                        <option value="preventivo">Preventivo</option>
-                                        <option value="correctivo">Correctivo</option>
+                                        <option value="preventivo">Mantenimiento preventivo</option>
+                                        <option value="correctivo">Mantenimiento correctivo</option>
+                                        <option value="siniestro">Siniestros</option>
+                                        <option value="reparacion_herramienta">Reparación de herramientas</option>
+                                        <option value="servicio_terceros">Servicios a terceros</option>
                                         <option value="lavado">Lavado</option>
                                         <option value="pintado">Pintado</option>
                                     </select>
                                 </div>
-                                <div class="col-md-2 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label class="campo-label" for="campoEstado">Estado</label>
                                     <select id="campoEstado" class="form-select">
                                         <option value="pendiente">Pendiente</option>
@@ -833,7 +956,7 @@
                                         <option value="anulado">Anulado</option>
                                     </select>
                                 </div>
-                                <div class="col-md-2 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label class="campo-label" for="campoPrioridad">Prioridad</label>
                                     <select id="campoPrioridad" class="form-select">
                                         <option value="baja">Baja</option>
@@ -841,7 +964,7 @@
                                         <option value="alta">Alta</option>
                                     </select>
                                 </div>
-                                <div class="col-md-2 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label class="campo-label" for="campoOdometro">Odómetro (km)</label>
                                     <input type="number" id="campoOdometro" class="form-control" min="0" placeholder="Ej: 45000">
                                 </div>
@@ -856,12 +979,14 @@
                                     <input type="date" id="campoFechaProgramada" class="form-control">
                                 </div>
                                 <div class="col-md-3 mb-3">
-                                    <label class="campo-label" for="campoFechaInicio">Inicio del trabajo</label>
-                                    <input type="datetime-local" id="campoFechaInicio" class="form-control">
+                                    <label class="campo-label" for="campoFechaEjecucion">Fecha de ejecución</label>
+                                    <input type="date" id="campoFechaEjecucion" class="form-control">
                                 </div>
                                 <div class="col-md-3 mb-3">
-                                    <label class="campo-label" for="campoFechaFin">Fin del trabajo</label>
-                                    <input type="datetime-local" id="campoFechaFin" class="form-control">
+                                    <label class="campo-label" for="campoTiempoTrabajo">Tiempo de trabajo (h)</label>
+                                    <input type="number" id="campoTiempoTrabajo" class="form-control"
+                                           min="0" step="0.25" placeholder="Ej: 2.5">
+                                    <div class="campo-ayuda">En horas: 1.5 son una hora y media.</div>
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label class="campo-label" for="campoResponsable">Responsable</label>
@@ -897,29 +1022,41 @@
                         </div>
 
                         <div class="form-section">
-                            <div class="form-section-title">Insumos utilizados</div>
+                            <div class="form-section-title">Repuestos e insumos utilizados</div>
                             <table id="tablaInsumos">
                                 <thead>
                                     <tr>
                                         <th style="width: 40%;">Descripción</th>
                                         <th style="width: 12%;">Cantidad</th>
                                         <th style="width: 12%;">Unidad</th>
-                                        <th style="width: 15%;">Costo unit.</th>
-                                        <th style="width: 15%; text-align: right;">Subtotal</th>
+                                        <th style="width: 15%;" data-solo-admin>Costo unit.</th>
+                                        <th style="width: 15%; text-align: right;" data-solo-admin>Subtotal</th>
                                         <th style="width: 6%;"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="cuerpoInsumos"></tbody>
                             </table>
                             <button type="button" class="btn-agregar-insumo" onclick="agregarFilaInsumo()">
-                                <i class="fas fa-plus me-2"></i>Agregar insumo
+                                <i class="fas fa-plus me-2"></i>Agregar repuesto
                             </button>
+                        </div>
 
-                            <div class="row mt-3">
+                        <!-- Valorización: la lleva administración. El resto de perfiles
+                             no la ve (data-solo-admin) y el servidor tampoco se la envía. -->
+                        <div class="form-section" data-solo-admin>
+                            <div class="form-section-title">Costos y validación</div>
+                            <div class="row">
                                 <div class="col-md-5">
-                                    <label class="campo-label" for="campoManoObra">Costo de mano de obra</label>
-                                    <input type="number" id="campoManoObra" class="form-control" min="0" step="0.01" value="0"
-                                           oninput="recalcularTotales()">
+                                    <div class="mb-3">
+                                        <label class="campo-label" for="campoManoObra">Costo de mano de obra</label>
+                                        <input type="number" id="campoManoObra" class="form-control" min="0" step="0.01" value="0"
+                                               oninput="recalcularTotales()">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="campo-label" for="campoPresupuesto">Presupuesto estimado</label>
+                                        <input type="number" id="campoPresupuesto" class="form-control" min="0" step="0.01"
+                                               placeholder="Sin presupuesto">
+                                    </div>
                                 </div>
                                 <div class="col-md-7">
                                     <div class="totales">
@@ -934,6 +1071,19 @@
                                         <div class="linea total">
                                             <span>Total</span>
                                             <span class="valor" id="totalGeneral">0.00</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="validacion-caja">
+                                        <div class="validacion-estado" id="validacionEstado">
+                                            Pendiente de validación
+                                        </div>
+                                        <input type="hidden" id="campoValidado" value="false">
+                                        <div class="d-flex gap-2 mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                    id="botonValidar" onclick="alternarValidacion()">
+                                                <i class="fas fa-circle-check me-2"></i>Validar servicio
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -1128,8 +1278,13 @@
         let vehiculos = [];
         let danos = [];
         let mantenimientos = [];
+        let plantillas = [];
         let tablaDanos = null;
         let tablaMantenimientos = null;
+
+        // Las cifras son cosa de administración: el servidor no se las manda al
+        // taller y la pantalla tampoco las pinta. Se consulta una sola vez.
+        const VE_COSTOS = !!(window.Auth && window.Auth.esAdmin());
 
         const ETIQUETAS = {
             pendiente: 'Pendiente',
@@ -1143,6 +1298,9 @@
             correctivo: 'Correctivo',
             lavado: 'Lavado',
             pintado: 'Pintado',
+            siniestro: 'Siniestro',
+            reparacion_herramienta: 'Rep. herramienta',
+            servicio_terceros: 'Servicio a terceros',
             alta: 'Alta',
             media: 'Media',
             baja: 'Baja',
@@ -1170,6 +1328,9 @@
             correctivo: 'fa-wrench',
             lavado: 'fa-soap',
             pintado: 'fa-spray-can',
+            siniestro: 'fa-car-burst',
+            reparacion_herramienta: 'fa-screwdriver',
+            servicio_terceros: 'fa-handshake',
             entrada: 'fa-arrow-right-to-bracket',
             salida: 'fa-arrow-right-from-bracket',
             entrada_mantenimiento: 'fa-arrow-right-to-bracket',
@@ -1216,19 +1377,29 @@
             });
         }
 
-        // Los inputs datetime-local trabajan en hora local; la base guarda ISO
-        function isoADatetimeLocal(iso) {
-            if (!iso) return '';
-            const fecha = new Date(iso);
-            if (isNaN(fecha.getTime())) return '';
-            const desfase = fecha.getTimezoneOffset() * 60000;
-            return new Date(fecha.getTime() - desfase).toISOString().slice(0, 16);
+        function formatearHoras(valor) {
+            const horas = Number(valor);
+            if (!horas) return '—';
+            return `${horas.toLocaleString('es-PE', { maximumFractionDigits: 2 })} h`;
         }
 
-        function datetimeLocalAIso(valor) {
-            if (!valor) return null;
-            const fecha = new Date(valor);
-            return isNaN(fecha.getTime()) ? null : fecha.toISOString();
+        // Una orden se hace sobre un vehículo de la flota o sobre un activo del
+        // taller (una herramienta, un trabajo para un tercero). El backend ya
+        // resuelve cuál de los dos mostrar en vehiculo_placa.
+        function objetoDeLaOrden(orden) {
+            if (orden.vehiculo_id) {
+                return {
+                    titulo: orden.vehiculo_placa || 'Sin placa',
+                    detalle: `${orden.vehiculo_marca || ''} ${orden.vehiculo_modelo || ''}`.trim(),
+                    esActivo: false
+                };
+            }
+
+            return {
+                titulo: orden.activo_descripcion || 'Sin asignar',
+                detalle: 'Activo de maestranza',
+                esActivo: true
+            };
         }
 
         // ============================================================
@@ -1243,7 +1414,9 @@
                 console.error('Error al cargar vehículos:', error);
             }
 
-            await Promise.all([cargarDanos(), cargarMantenimientos(), cargarPreventivos()]);
+            await Promise.all([
+                cargarDanos(), cargarMantenimientos(), cargarPreventivos(), cargarPlantillas()
+            ]);
         }
 
         function poblarSelectoresVehiculo() {
@@ -1259,10 +1432,236 @@
                 '<option value="">Todos</option>' + opciones;
             document.getElementById('filtroPrevVehiculo').innerHTML =
                 '<option value="">Todos</option>' + opciones;
-            document.getElementById('campoVehiculo').innerHTML =
-                '<option value="">Seleccione un vehículo</option>' + opciones;
             document.getElementById('planVehiculo').innerHTML =
                 '<option value="">Seleccione un vehículo</option>' + opciones;
+        }
+
+        // ============================================================
+        // Buscador de vehículos del formulario
+        // ============================================================
+        // El desplegable de la flota completa era incómodo de usar en el taller.
+        // Aquí se busca por placa, marca o modelo, y si la placa no está se da
+        // de alta desde el mismo listado.
+
+        function textoDeVehiculo(vehiculo) {
+            return `${vehiculo.placa || ''} ${vehiculo.marca || ''} ${vehiculo.modelo || ''}`
+                .trim().toLowerCase();
+        }
+
+        function filtrarVehiculos(consulta) {
+            const buscado = String(consulta || '').trim().toLowerCase();
+            if (!buscado) return [];
+
+            return vehiculos
+                .filter(v => textoDeVehiculo(v).includes(buscado))
+                .sort((a, b) => String(a.placa).localeCompare(String(b.placa)))
+                .slice(0, 8);
+        }
+
+        function mostrarListaVehiculos() {
+            const consulta = document.getElementById('campoVehiculoBusqueda').value;
+            const lista = document.getElementById('campoVehiculoLista');
+            const texto = String(consulta || '').trim();
+
+            if (!texto) {
+                lista.classList.remove('abierta');
+                lista.innerHTML = '';
+                return;
+            }
+
+            const encontrados = filtrarVehiculos(texto);
+
+            const opciones = encontrados.map(v =>
+                `<div class="buscador-opcion" onclick="seleccionarVehiculoPorId(${v.id})">` +
+                    `<span class="placa">${escapar(v.placa)}</span> ` +
+                    `<span class="detalle">${escapar(v.marca)} ${escapar(v.modelo)}</span>` +
+                '</div>'
+            ).join('');
+
+            const placaNueva = texto.toUpperCase();
+            const yaExiste = vehiculos.some(v => String(v.placa).toUpperCase() === placaNueva);
+
+            const alta = yaExiste ? '' :
+                `<div class="buscador-opcion nueva" onclick="registrarPlacaRapida('${escapar(placaNueva)}')">` +
+                    `<i class="fas fa-plus me-2"></i>Registrar la placa «${escapar(placaNueva)}»` +
+                '</div>';
+
+            lista.innerHTML = opciones + alta ||
+                '<div class="buscador-vacio">Sin coincidencias</div>';
+            lista.classList.add('abierta');
+        }
+
+        function seleccionarVehiculoPorId(id) {
+            const vehiculo = vehiculos.find(v => String(v.id) === String(id));
+            const lista = document.getElementById('campoVehiculoLista');
+
+            lista.classList.remove('abierta');
+            lista.innerHTML = '';
+
+            if (!vehiculo) {
+                document.getElementById('campoVehiculo').value = '';
+                document.getElementById('campoVehiculoBusqueda').value = '';
+                return;
+            }
+
+            document.getElementById('campoVehiculo').value = vehiculo.id;
+            document.getElementById('campoVehiculoBusqueda').value =
+                `${vehiculo.placa} — ${vehiculo.marca || ''} ${vehiculo.modelo || ''}`.trim();
+        }
+
+        function limpiarVehiculoSeleccionado() {
+            document.getElementById('campoVehiculo').value = '';
+            document.getElementById('campoVehiculoBusqueda').value = '';
+            const lista = document.getElementById('campoVehiculoLista');
+            lista.classList.remove('abierta');
+            lista.innerHTML = '';
+        }
+
+        // Alta rápida desde el propio formulario: solo la placa y el tipo. Los
+        // documentos con vencimiento los carga administración en su pantalla.
+        async function registrarPlacaRapida(placa) {
+            document.getElementById('campoVehiculoLista').classList.remove('abierta');
+
+            const { value: datos } = await Swal.fire({
+                title: 'Registrar vehículo',
+                html:
+                    `<input id="alta-placa" class="swal2-input" placeholder="Placa" value="${escapar(placa)}">` +
+                    '<select id="alta-tipo" class="swal2-input">' +
+                        '<option value="auto">Auto</option>' +
+                        '<option value="moto">Moto</option>' +
+                        '<option value="camion">Camión</option>' +
+                        '<option value="otro">Otro</option>' +
+                    '</select>' +
+                    '<input id="alta-marca" class="swal2-input" placeholder="Marca">' +
+                    '<input id="alta-modelo" class="swal2-input" placeholder="Modelo">',
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Registrar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    const valor = {
+                        placa: document.getElementById('alta-placa').value.trim().toUpperCase(),
+                        tipo: document.getElementById('alta-tipo').value,
+                        marca: document.getElementById('alta-marca').value.trim(),
+                        modelo: document.getElementById('alta-modelo').value.trim()
+                    };
+
+                    if (!valor.placa) {
+                        Swal.showValidationMessage('La placa es obligatoria');
+                        return false;
+                    }
+
+                    return valor;
+                }
+            });
+
+            if (!datos) return;
+
+            try {
+                const respuesta = await fetch('/api/vehiculos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+
+                if (!respuesta.ok) {
+                    const error = await respuesta.json().catch(() => ({}));
+                    throw new Error(error.error || 'No se pudo registrar el vehículo');
+                }
+
+                const creado = await respuesta.json();
+
+                vehiculos.push(creado);
+                poblarSelectoresVehiculo();
+                seleccionarVehiculoPorId(creado.id);
+
+                Swal.fire({
+                    icon: 'success', title: 'Vehículo registrado',
+                    text: `${creado.placa} quedó disponible en la flota.`,
+                    timer: 1800, showConfirmButton: false
+                });
+
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'No se pudo registrar', text: error.message });
+            }
+        }
+
+        // Las herramientas del taller y los trabajos a terceros no tienen placa:
+        // el formulario resalta el campo que corresponde según el tipo elegido.
+        function alternarObjetoDeTrabajo() {
+            const tipo = document.getElementById('campoTipo').value;
+            const sinVehiculo = tipo === 'reparacion_herramienta' || tipo === 'servicio_terceros';
+
+            document.getElementById('campoActivo').placeholder = sinVehiculo
+                ? 'Ej: Compresor del taller, Cliente XYZ'
+                : 'Opcional para trabajos sobre la flota';
+        }
+
+        // ============================================================
+        // Plantillas de servicio
+        // ============================================================
+
+        async function cargarPlantillas() {
+            try {
+                const respuesta = await fetch('/api/catalogo-servicios');
+                if (!respuesta.ok) throw new Error('No se pudo cargar el catálogo');
+
+                const datos = await respuesta.json();
+                plantillas = datos.plantillas || [];
+                poblarSelectorPlantillas();
+            } catch (error) {
+                // El catálogo es una ayuda, no un requisito: si falta, se captura a mano
+                console.error('Error al cargar las plantillas de servicio:', error);
+                plantillas = [];
+            }
+        }
+
+        function poblarSelectorPlantillas() {
+            const selector = document.getElementById('campoPlantilla');
+            if (!selector) return;
+
+            const opciones = plantillas
+                .filter(p => p.activo !== false)
+                .map(p => `<option value="${p.id}">${escapar(p.nombre)}</option>`)
+                .join('');
+
+            selector.innerHTML = '<option value="">Sin plantilla — capturar a mano</option>' + opciones;
+        }
+
+        // La plantilla completa lo que está vacío y suma sus repuestos: nunca
+        // pisa lo que el técnico ya escribió a mano.
+        function aplicarPlantilla() {
+            const id = document.getElementById('campoPlantilla').value;
+            if (!id) return;
+
+            const plantilla = plantillas.find(p => String(p.id) === String(id));
+            if (!plantilla) return;
+
+            if (plantilla.tipo) {
+                document.getElementById('campoTipo').value = plantilla.tipo;
+                alternarObjetoDeTrabajo();
+            }
+
+            const descripcion = document.getElementById('campoDescripcion');
+            if (plantilla.descripcion_sugerida && !descripcion.value.trim()) {
+                descripcion.value = plantilla.descripcion_sugerida;
+            }
+
+            const sugeridos = Array.isArray(plantilla.insumos_sugeridos) ? plantilla.insumos_sugeridos : [];
+
+            if (sugeridos.length > 0) {
+                // La primera fila del formulario nace vacía: se reutiliza
+                const filaVacia = Array.from(document.querySelectorAll('#cuerpoInsumos tr'))
+                    .find(fila => !fila.querySelector('.insumo-descripcion').value.trim());
+                if (filaVacia) filaVacia.remove();
+
+                sugeridos.forEach(insumo => agregarFilaInsumo({
+                    descripcion: insumo.descripcion,
+                    cantidad: insumo.cantidad,
+                    unidad: insumo.unidad,
+                    costo_unitario: 0
+                }));
+            }
         }
 
         // El backend responde con modulo_listo=false mientras falten las tablas:
@@ -1503,7 +1902,7 @@
             abrirModalMantenimiento();
 
             document.getElementById('detalleOrigenId').value = detalleId;
-            document.getElementById('campoVehiculo').value = dano.vehiculo_id || '';
+            seleccionarVehiculoPorId(dano.vehiculo_id);
             document.getElementById('campoTipo').value = 'correctivo';
             document.getElementById('campoOdometro').value = dano.odometro || '';
             document.getElementById('campoDescripcion').value =
@@ -1534,19 +1933,25 @@
         }
 
         function renderMantenimientos() {
-            const datos = mantenimientosFiltrados().map(m => [m, m, m, m, m, m, m, m, m, m]);
+            const datos = mantenimientosFiltrados().map(m => [m, m, m, m, m, m, m, m, m, m, m]);
 
             if (tablaMantenimientos) {
                 tablaMantenimientos.clear().rows.add(datos).draw();
                 return;
             }
 
+            // La columna de costo se oculta por configuración de DataTables, no
+            // por CSS: así no queda en el DOM ni participa del orden ni del
+            // buscador. El servidor tampoco envía la cifra a quien no la ve.
+            const columnDefs = [{ orderable: false, targets: [10] }];
+            if (!VE_COSTOS) columnDefs.push({ targets: [9], visible: false });
+
             tablaMantenimientos = $('#tablaMantenimientos').DataTable({
                 data: datos,
                 pageLength: 25,
                 order: [[0, 'desc']],
                 language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
-                columnDefs: [{ orderable: false, targets: [9] }],
+                columnDefs: columnDefs,
                 columns: [
                     {
                         render: function (m, type) {
@@ -1556,9 +1961,10 @@
                     },
                     {
                         render: function (m, type) {
-                            if (type !== 'display') return m.vehiculo_placa;
-                            return `<span class="placa-cell">${escapar(m.vehiculo_placa)}</span>` +
-                                `<div class="cell-muted">${escapar(m.vehiculo_marca)} ${escapar(m.vehiculo_modelo)}</div>`;
+                            const objeto = objetoDeLaOrden(m);
+                            if (type !== 'display') return objeto.titulo;
+                            return `<span class="placa-cell">${escapar(objeto.titulo)}</span>` +
+                                `<div class="cell-muted">${escapar(objeto.detalle)}</div>`;
                         }
                     },
                     { render: function (m, type) { return type === 'display' ? pill(m.tipo) : m.tipo; } },
@@ -1586,19 +1992,40 @@
                     },
                     {
                         render: function (m, type) {
+                            if (type !== 'display') return Number(m.tiempo_trabajo) || 0;
+                            return m.tiempo_trabajo
+                                ? `<span class="fecha-cell">${formatearHoras(m.tiempo_trabajo)}</span>`
+                                : '<span class="cell-muted">—</span>';
+                        }
+                    },
+                    {
+                        render: function (m, type) {
                             if (type !== 'display') return m.costo_total || 0;
-                            return `<span class="costo-cell">${formatearMonto(m.costo_total)}</span>`;
+                            const validada = m.validado_en
+                                ? '<span class="pill pill-validado"><i class="fas fa-circle-check"></i>Validado</span>'
+                                : '<span class="pill pill-sin-validar">Sin validar</span>';
+                            return `<span class="costo-cell">${formatearMonto(m.costo_total)}</span>` +
+                                `<div class="mt-1">${validada}</div>`;
                         }
                     },
                     {
                         render: function (m) {
+                            const objeto = objetoDeLaOrden(m);
+
+                            // Borrar una orden ya valorizada destruiría el gasto
+                            // registrado: el taller anula, administración elimina.
+                            const borrar = VE_COSTOS
+                                ? `<button class="btn btn-sm btn-outline-secondary" title="Eliminar" ` +
+                                  `onclick="eliminarMantenimiento(${m.id}, '${escapar(objeto.titulo)}')">` +
+                                  '<i class="fas fa-trash"></i></button>'
+                                : '';
+
                             return '<div class="action-buttons">' +
                                 `<button class="btn btn-sm btn-outline-secondary" title="Ver y editar" ` +
                                 `onclick="abrirModalMantenimiento(${m.id})"><i class="fas fa-edit"></i></button>` +
                                 `<button class="btn btn-sm btn-outline-secondary" title="Exportar orden en PDF" ` +
                                 `onclick="exportarOrdenPdf(${m.id})"><i class="fas fa-file-pdf"></i></button>` +
-                                `<button class="btn btn-sm btn-outline-secondary" title="Eliminar" ` +
-                                `onclick="eliminarMantenimiento(${m.id}, '${escapar(m.vehiculo_placa)}')"><i class="fas fa-trash"></i></button>` +
+                                borrar +
                                 '</div>';
                         }
                     }
@@ -1706,34 +2133,53 @@
 
             const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-            encabezadoPdf(doc, 'Reporte de mantenimientos', descripcionFiltros());
+            encabezadoPdf(doc, VE_COSTOS ? 'Reporte de mantenimientos' : 'Reporte de servicios',
+                descripcionFiltros());
+
+            const cabecera = ['Orden', 'Vehículo o activo', 'Tipo', 'Estado', 'Prioridad', 'Programada',
+                              'Responsable', 'Taller', 'Repuestos', 'Tiempo'];
+            if (VE_COSTOS) cabecera.push('Mano de obra', 'Costo total');
 
             doc.autoTable({
                 startY: 28,
-                head: [['Orden', 'Vehículo', 'Tipo', 'Estado', 'Prioridad', 'Programada',
-                        'Responsable', 'Taller', 'Insumos', 'Mano de obra', 'Costo total']],
-                body: filas.map(m => [
-                    `#${m.id}`,
-                    `${m.vehiculo_placa}\n${m.vehiculo_marca} ${m.vehiculo_modelo}`.trim(),
-                    ETIQUETAS[m.tipo] || m.tipo || '—',
-                    ETIQUETAS[m.estado] || m.estado || '—',
-                    ETIQUETAS[m.prioridad] || m.prioridad || '—',
-                    fechaPlana(m.fecha_programada),
-                    m.responsable || '—',
-                    m.taller || '—',
-                    String(m.total_items || 0),
-                    formatearMonto(m.costo_mano_obra),
-                    formatearMonto(m.costo_total)
-                ]),
+                head: [cabecera],
+                body: filas.map(m => {
+                    const objeto = objetoDeLaOrden(m);
+                    const fila = [
+                        `#${m.id}`,
+                        `${objeto.titulo}\n${objeto.detalle}`.trim(),
+                        ETIQUETAS[m.tipo] || m.tipo || '—',
+                        ETIQUETAS[m.estado] || m.estado || '—',
+                        ETIQUETAS[m.prioridad] || m.prioridad || '—',
+                        fechaPlana(m.fecha_programada),
+                        m.responsable || '—',
+                        m.taller || '—',
+                        String(m.total_items || 0),
+                        m.tiempo_trabajo ? formatearHoras(m.tiempo_trabajo) : '—'
+                    ];
+
+                    if (VE_COSTOS) {
+                        fila.push(formatearMonto(m.costo_mano_obra), formatearMonto(m.costo_total));
+                    }
+
+                    return fila;
+                }),
                 styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
                 headStyles: { fillColor: PDF_CIAN, textColor: 255, fontStyle: 'bold' },
                 alternateRowStyles: { fillColor: [246, 249, 251] },
-                columnStyles: {
-                    0: { cellWidth: 16 },
-                    8: { halign: 'center', cellWidth: 16 },
-                    9: { halign: 'right', cellWidth: 24 },
-                    10: { halign: 'right', cellWidth: 24, fontStyle: 'bold' }
-                },
+                columnStyles: VE_COSTOS
+                    ? {
+                        0: { cellWidth: 15 },
+                        8: { halign: 'center', cellWidth: 15 },
+                        9: { halign: 'right', cellWidth: 16 },
+                        10: { halign: 'right', cellWidth: 22 },
+                        11: { halign: 'right', cellWidth: 22, fontStyle: 'bold' }
+                    }
+                    : {
+                        0: { cellWidth: 16 },
+                        8: { halign: 'center', cellWidth: 18 },
+                        9: { halign: 'right', cellWidth: 20 }
+                    },
                 margin: { left: 14, right: 14 }
             });
 
@@ -1744,22 +2190,33 @@
                 return acc;
             }, {});
 
-            const totalInsumos = filas.reduce((suma, m) => suma + (Number(m.total_insumos) || 0), 0);
-            const totalManoObra = filas.reduce((suma, m) => suma + (Number(m.costo_mano_obra) || 0), 0);
-            const totalGeneral = filas.reduce((suma, m) => suma + (Number(m.costo_total) || 0), 0);
+            const totalHoras = filas.reduce((suma, m) => suma + (Number(m.tiempo_trabajo) || 0), 0);
+
+            const resumen = [
+                ['Órdenes incluidas', String(filas.length)],
+                ['Por estado', Object.entries(porEstado)
+                    .map(([estado, cantidad]) => `${ETIQUETAS[estado] || estado}: ${cantidad}`)
+                    .join('   ·   ')],
+                ['Horas de trabajo acumuladas', formatearHoras(totalHoras)]
+            ];
+
+            // El resumen económico solo aparece en el reporte de administración
+            if (VE_COSTOS) {
+                const totalInsumos = filas.reduce((suma, m) => suma + (Number(m.total_insumos) || 0), 0);
+                const totalManoObra = filas.reduce((suma, m) => suma + (Number(m.costo_mano_obra) || 0), 0);
+                const totalGeneral = filas.reduce((suma, m) => suma + (Number(m.costo_total) || 0), 0);
+
+                resumen.push(
+                    ['Total en insumos', formatearMonto(totalInsumos)],
+                    ['Total en mano de obra', formatearMonto(totalManoObra)],
+                    ['Costo total acumulado', formatearMonto(totalGeneral)]
+                );
+            }
 
             doc.autoTable({
                 startY: doc.lastAutoTable.finalY + 6,
                 head: [['Resumen', '']],
-                body: [
-                    ['Órdenes incluidas', String(filas.length)],
-                    ['Por estado', Object.entries(porEstado)
-                        .map(([estado, cantidad]) => `${ETIQUETAS[estado] || estado}: ${cantidad}`)
-                        .join('   ·   ')],
-                    ['Total en insumos', formatearMonto(totalInsumos)],
-                    ['Total en mano de obra', formatearMonto(totalManoObra)],
-                    ['Costo total acumulado', formatearMonto(totalGeneral)]
-                ],
+                body: resumen,
                 theme: 'grid',
                 styles: { fontSize: 8, cellPadding: 2 },
                 headStyles: { fillColor: [246, 249, 251], textColor: 60, fontStyle: 'bold' },
@@ -1789,8 +2246,10 @@
                 const orden = await respuesta.json();
                 const doc = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-                encabezadoPdf(doc, `Orden de mantenimiento #${orden.id}`,
-                    `${orden.vehiculo_placa} · ${orden.vehiculo_marca} ${orden.vehiculo_modelo}`.trim());
+                const objeto = objetoDeLaOrden(orden);
+
+                encabezadoPdf(doc, `Orden de trabajo #${orden.id}`,
+                    `${objeto.titulo} · ${objeto.detalle}`.trim());
 
                 doc.autoTable({
                     startY: 28,
@@ -1800,8 +2259,8 @@
                         ['Prioridad', ETIQUETAS[orden.prioridad] || orden.prioridad || '—',
                          'Odómetro', orden.odometro != null ? `${Number(orden.odometro).toLocaleString('es-PE')} km` : '—'],
                         ['Programada', fechaPlana(orden.fecha_programada),
-                         'Inicio', fechaPlana(orden.fecha_inicio)],
-                        ['Fin', fechaPlana(orden.fecha_fin),
+                         'Ejecución', fechaPlana(orden.fecha_ejecucion)],
+                        ['Tiempo de trabajo', orden.tiempo_trabajo ? formatearHoras(orden.tiempo_trabajo) : '—',
                          'Responsable', orden.responsable || '—'],
                         ['Taller', orden.taller || '—',
                          'Daños vinculados', String((orden.danos_vinculados || []).length)]
@@ -1840,44 +2299,65 @@
 
                 const insumos = orden.insumos || [];
 
+                // La orden de trabajo del taller lleva los repuestos pero no su
+                // valorización: esa parte del documento es de administración.
                 doc.autoTable({
                     startY: doc.lastAutoTable.finalY + 5,
-                    head: [['Insumo', 'Cantidad', 'Unidad', 'Costo unitario', 'Subtotal']],
+                    head: VE_COSTOS
+                        ? [['Repuesto o insumo', 'Cantidad', 'Unidad', 'Costo unitario', 'Subtotal']]
+                        : [['Repuesto o insumo', 'Cantidad', 'Unidad']],
                     body: insumos.length > 0
-                        ? insumos.map(i => [
-                            i.descripcion,
-                            String(i.cantidad),
-                            i.unidad || 'und',
-                            formatearMonto(i.costo_unitario),
-                            formatearMonto((Number(i.cantidad) || 0) * (Number(i.costo_unitario) || 0))
-                        ])
-                        : [['Sin insumos registrados', '', '', '', '']],
+                        ? insumos.map(i => VE_COSTOS
+                            ? [
+                                i.descripcion,
+                                String(i.cantidad),
+                                i.unidad || 'und',
+                                formatearMonto(i.costo_unitario),
+                                formatearMonto((Number(i.cantidad) || 0) * (Number(i.costo_unitario) || 0))
+                            ]
+                            : [i.descripcion, String(i.cantidad), i.unidad || 'und'])
+                        : [VE_COSTOS
+                            ? ['Sin repuestos registrados', '', '', '', '']
+                            : ['Sin repuestos registrados', '', '']],
                     styles: { fontSize: 9, cellPadding: 2.5 },
                     headStyles: { fillColor: PDF_CIAN, textColor: 255, fontStyle: 'bold' },
-                    columnStyles: {
-                        1: { halign: 'right', cellWidth: 22 },
-                        2: { cellWidth: 20 },
-                        3: { halign: 'right', cellWidth: 30 },
-                        4: { halign: 'right', cellWidth: 30 }
-                    },
+                    columnStyles: VE_COSTOS
+                        ? {
+                            1: { halign: 'right', cellWidth: 22 },
+                            2: { cellWidth: 20 },
+                            3: { halign: 'right', cellWidth: 30 },
+                            4: { halign: 'right', cellWidth: 30 }
+                        }
+                        : {
+                            1: { halign: 'right', cellWidth: 25 },
+                            2: { cellWidth: 25 }
+                        },
                     margin: { left: 14, right: 14 }
                 });
 
-                doc.autoTable({
-                    startY: doc.lastAutoTable.finalY + 4,
-                    body: [
+                if (VE_COSTOS) {
+                    const resumen = [
                         ['Total en insumos', formatearMonto(orden.total_insumos)],
                         ['Mano de obra', formatearMonto(orden.costo_mano_obra)],
                         ['Costo total', formatearMonto(orden.costo_total)]
-                    ],
-                    theme: 'grid',
-                    styles: { fontSize: 9, cellPadding: 2.5, halign: 'right' },
-                    columnStyles: {
-                        0: { cellWidth: 45, fontStyle: 'bold', halign: 'left', fillColor: [246, 249, 251] },
-                        1: { cellWidth: 35 }
-                    },
-                    margin: { left: 102, right: 14 }
-                });
+                    ];
+
+                    if (orden.presupuesto != null) {
+                        resumen.splice(2, 0, ['Presupuesto', formatearMonto(orden.presupuesto)]);
+                    }
+
+                    doc.autoTable({
+                        startY: doc.lastAutoTable.finalY + 4,
+                        body: resumen,
+                        theme: 'grid',
+                        styles: { fontSize: 9, cellPadding: 2.5, halign: 'right' },
+                        columnStyles: {
+                            0: { cellWidth: 45, fontStyle: 'bold', halign: 'left', fillColor: [246, 249, 251] },
+                            1: { cellWidth: 35 }
+                        },
+                        margin: { left: 102, right: 14 }
+                    });
+                }
 
                 pieDePagina(doc);
                 doc.save(`orden-mantenimiento-${orden.id}.pdf`);
@@ -1896,7 +2376,16 @@
             document.getElementById('planOrigenId').value = '';
             document.getElementById('campoPrioridad').value = 'media';
             document.getElementById('campoEstado').value = 'pendiente';
-            document.getElementById('campoManoObra').value = '0';
+            document.getElementById('campoPlantilla').value = '';
+            limpiarVehiculoSeleccionado();
+            alternarObjetoDeTrabajo();
+
+            if (VE_COSTOS) {
+                document.getElementById('campoManoObra').value = '0';
+                document.getElementById('campoPresupuesto').value = '';
+                marcarValidacion(null, null);
+            }
+
             document.getElementById('cuerpoInsumos').innerHTML = '';
             agregarFilaInsumo();
             recalcularTotales();
@@ -1904,12 +2393,17 @@
 
         function agregarFilaInsumo(insumo) {
             const fila = document.createElement('tr');
+
+            // El id viaja con la fila: al guardar, el servidor casa cada línea
+            // con la registrada y no pierde el costo que cargó administración.
+            fila.dataset.insumoId = insumo && insumo.id != null ? insumo.id : '';
+
             fila.innerHTML =
                 `<td><input type="text" class="insumo-descripcion" placeholder="Ej: Aceite 15W40" value="${escapar(insumo?.descripcion)}"></td>` +
                 `<td><input type="number" class="num insumo-cantidad" min="0" step="0.01" value="${insumo ? insumo.cantidad : 1}" oninput="recalcularTotales()"></td>` +
                 `<td><input type="text" class="insumo-unidad" placeholder="und" value="${escapar(insumo?.unidad || 'und')}"></td>` +
-                `<td><input type="number" class="num insumo-costo" min="0" step="0.01" value="${insumo ? insumo.costo_unitario : 0}" oninput="recalcularTotales()"></td>` +
-                `<td class="subtotal-celda">0.00</td>` +
+                `<td data-solo-admin><input type="number" class="num insumo-costo" min="0" step="0.01" value="${insumo && insumo.costo_unitario != null ? insumo.costo_unitario : 0}" oninput="recalcularTotales()"></td>` +
+                `<td class="subtotal-celda" data-solo-admin>0.00</td>` +
                 `<td><button type="button" class="btn-quitar-insumo" title="Quitar"><i class="fas fa-times"></i></button></td>`;
 
             fila.querySelector('.btn-quitar-insumo').addEventListener('click', function () {
@@ -1919,6 +2413,38 @@
 
             document.getElementById('cuerpoInsumos').appendChild(fila);
             recalcularTotales();
+        }
+
+        // Estado de la validación administrativa dentro del formulario
+        function marcarValidacion(quien, cuando) {
+            const caja = document.getElementById('validacionEstado');
+            const boton = document.getElementById('botonValidar');
+            const marca = document.getElementById('campoValidado');
+            if (!caja || !boton || !marca) return;
+
+            if (cuando) {
+                marca.value = 'true';
+                caja.classList.add('validado');
+                caja.textContent = `Validado por ${quien || 'administración'} el ${formatearFecha(cuando)}`;
+                boton.innerHTML = '<i class="fas fa-rotate-left me-2"></i>Quitar validación';
+            } else {
+                marca.value = 'false';
+                caja.classList.remove('validado');
+                caja.textContent = 'Pendiente de validación';
+                boton.innerHTML = '<i class="fas fa-circle-check me-2"></i>Validar servicio';
+            }
+        }
+
+        function alternarValidacion() {
+            const validado = document.getElementById('campoValidado').value === 'true';
+
+            if (validado) {
+                marcarValidacion(null, null);
+                return;
+            }
+
+            const quien = window.Auth && window.Auth.usuario();
+            marcarValidacion(quien ? (quien.nombre || quien.usuario) : null, new Date().toISOString());
         }
 
         function recalcularTotales() {
@@ -1944,7 +2470,10 @@
                 descripcion: fila.querySelector('.insumo-descripcion').value,
                 cantidad: fila.querySelector('.insumo-cantidad').value,
                 unidad: fila.querySelector('.insumo-unidad').value,
-                costo_unitario: fila.querySelector('.insumo-costo').value
+                id: fila.dataset.insumoId || null,
+                // Quien no ve los costos tampoco los manda: el servidor conserva
+                // los que ya estaban cargados.
+                costo_unitario: VE_COSTOS ? fila.querySelector('.insumo-costo').value : undefined
             })).filter(i => i.descripcion.trim() !== '');
         }
 
@@ -1953,7 +2482,7 @@
             const modal = new bootstrap.Modal(document.getElementById('modalMantenimiento'));
 
             if (!id) {
-                document.getElementById('tituloModalMantenimiento').textContent = 'Nuevo mantenimiento';
+                document.getElementById('tituloModalMantenimiento').textContent = 'Nuevo servicio';
                 modal.show();
                 return;
             }
@@ -1963,25 +2492,34 @@
                 if (!respuesta.ok) throw new Error('No se pudo cargar el mantenimiento');
 
                 const m = await respuesta.json();
+                const objeto = objetoDeLaOrden(m);
 
                 document.getElementById('tituloModalMantenimiento').textContent =
-                    `Mantenimiento #${m.id} — ${m.vehiculo_placa}`;
+                    `Servicio #${m.id} — ${objeto.titulo}`;
                 document.getElementById('mantenimientoId').value = m.id;
-                document.getElementById('campoVehiculo').value = m.vehiculo_id || '';
+                seleccionarVehiculoPorId(m.vehiculo_id);
+                document.getElementById('campoActivo').value = m.activo_descripcion || '';
                 document.getElementById('campoTipo').value = m.tipo || 'preventivo';
                 document.getElementById('campoEstado').value = m.estado || 'pendiente';
                 document.getElementById('campoPrioridad').value = m.prioridad || 'media';
                 document.getElementById('campoOdometro').value = m.odometro || '';
                 document.getElementById('campoFechaProgramada').value = m.fecha_programada || '';
-                document.getElementById('campoFechaInicio').value = isoADatetimeLocal(m.fecha_inicio);
-                document.getElementById('campoFechaFin').value = isoADatetimeLocal(m.fecha_fin);
+                document.getElementById('campoFechaEjecucion').value = m.fecha_ejecucion || '';
+                document.getElementById('campoTiempoTrabajo').value = m.tiempo_trabajo ?? '';
                 document.getElementById('campoResponsable').value = m.responsable || '';
                 document.getElementById('campoTaller').value = m.taller || '';
                 document.getElementById('campoDescripcion').value = m.descripcion || '';
                 document.getElementById('campoDiagnostico').value = m.diagnostico || '';
                 document.getElementById('campoTrabajos').value = m.trabajos_realizados || '';
                 document.getElementById('campoObservaciones').value = m.observaciones || '';
-                document.getElementById('campoManoObra').value = m.costo_mano_obra || 0;
+                alternarObjetoDeTrabajo();
+
+                if (VE_COSTOS) {
+                    document.getElementById('campoManoObra').value = m.costo_mano_obra || 0;
+                    document.getElementById('campoPresupuesto').value =
+                        m.presupuesto != null ? m.presupuesto : '';
+                    marcarValidacion(m.validado_por, m.validado_en);
+                }
 
                 document.getElementById('cuerpoInsumos').innerHTML = '';
                 if (m.insumos && m.insumos.length > 0) {
@@ -2001,30 +2539,45 @@
         async function guardarMantenimiento() {
             const id = document.getElementById('mantenimientoId').value;
             const vehiculoId = document.getElementById('campoVehiculo').value;
+            const activo = document.getElementById('campoActivo').value.trim();
 
-            if (!vehiculoId) {
-                Swal.fire({ icon: 'warning', title: 'Falta el vehículo', text: 'Seleccione el vehículo del mantenimiento' });
+            // El trabajo es sobre una unidad de la flota o sobre un activo del
+            // taller (herramientas, servicios a terceros): hace falta uno de los dos.
+            if (!vehiculoId && !activo) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Falta indicar sobre qué se trabajó',
+                    text: 'Seleccione un vehículo o describa el activo o cliente atendido.'
+                });
                 return;
             }
 
             const datos = {
-                vehiculo_id: vehiculoId,
+                vehiculo_id: vehiculoId || null,
+                activo_descripcion: activo,
                 tipo: document.getElementById('campoTipo').value,
                 estado: document.getElementById('campoEstado').value,
                 prioridad: document.getElementById('campoPrioridad').value,
                 odometro: document.getElementById('campoOdometro').value,
                 fecha_programada: document.getElementById('campoFechaProgramada').value,
-                fecha_inicio: datetimeLocalAIso(document.getElementById('campoFechaInicio').value),
-                fecha_fin: datetimeLocalAIso(document.getElementById('campoFechaFin').value),
+                fecha_ejecucion: document.getElementById('campoFechaEjecucion').value,
+                tiempo_trabajo: document.getElementById('campoTiempoTrabajo').value,
                 responsable: document.getElementById('campoResponsable').value,
                 taller: document.getElementById('campoTaller').value,
                 descripcion: document.getElementById('campoDescripcion').value,
                 diagnostico: document.getElementById('campoDiagnostico').value,
                 trabajos_realizados: document.getElementById('campoTrabajos').value,
                 observaciones: document.getElementById('campoObservaciones').value,
-                costo_mano_obra: document.getElementById('campoManoObra').value,
                 insumos: leerInsumos()
             };
+
+            // Lo económico solo lo envía administración. El servidor descarta
+            // estos campos igualmente si llegaran de otro perfil.
+            if (VE_COSTOS) {
+                datos.costo_mano_obra = document.getElementById('campoManoObra').value;
+                datos.presupuesto = document.getElementById('campoPresupuesto').value;
+                datos.validado = document.getElementById('campoValidado').value === 'true';
+            }
 
             const detalleOrigen = document.getElementById('detalleOrigenId').value;
             if (detalleOrigen) datos.detalle_id = detalleOrigen;
@@ -2486,7 +3039,7 @@
             abrirModalMantenimiento();
 
             document.getElementById('planOrigenId').value = plan.id;
-            document.getElementById('campoVehiculo').value = plan.vehiculo_id || '';
+            seleccionarVehiculoPorId(plan.vehiculo_id);
             document.getElementById('campoTipo').value = 'preventivo';
             document.getElementById('campoOdometro').value = plan.odometro_actual || '';
             document.getElementById('campoDescripcion').value =
@@ -2509,6 +3062,26 @@
 
             ['filtroPrevVehiculo', 'filtroPrevSituacion', 'filtroPrevRutina', 'filtroPrevTipo']
                 .forEach(id => document.getElementById(id).addEventListener('change', renderPreventivos));
+
+            // Buscador de vehículo del formulario
+            const busqueda = document.getElementById('campoVehiculoBusqueda');
+
+            busqueda.addEventListener('input', function () {
+                // Al reescribir se pierde la selección previa: el hidden manda
+                document.getElementById('campoVehiculo').value = '';
+                mostrarListaVehiculos();
+            });
+
+            busqueda.addEventListener('focus', mostrarListaVehiculos);
+
+            document.addEventListener('click', function (evento) {
+                if (!evento.target.closest('.buscador-vehiculo')) {
+                    document.getElementById('campoVehiculoLista').classList.remove('abierta');
+                }
+            });
+
+            document.getElementById('campoPlantilla').addEventListener('change', aplicarPlantilla);
+            document.getElementById('campoTipo').addEventListener('change', alternarObjetoDeTrabajo);
 
             cargarTodo();
         });
