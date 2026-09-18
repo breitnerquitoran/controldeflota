@@ -1182,8 +1182,11 @@
                     console.error('Datos faltantes en localStorage. Redirigiendo a la página principal.');
                     alert('Datos incompletos. Será redirigido a la página principal para seleccionar vehículo y asesor.');
 
-                    // Limpiar localStorage para evitar problemas futuros
-                    localStorage.clear();
+                    // Limpiar solo los datos de la inspección: un clear()
+                    // completo borraría la sesión guardada por auth.js.
+                    ['selectedVehicleId', 'selectedVehicleName', 'selectedVehicleInfo', 'vehicleType', 'selectedAdvisorId', 'selectedAdvisorName', 'selectedAdvisorNombre', 'odometerValue', 'entryType', 'inspectionDate', 'inspectionData'].forEach(function (clave) {
+                        localStorage.removeItem(clave);
+                    });
 
                     // Redirigir a la página principal
                     window.location.href = 'index.html';

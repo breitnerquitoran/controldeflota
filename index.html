@@ -1288,8 +1288,12 @@
             console.log('Iniciando inspección con:', { selectedVehicle, selectedAdvisor, odometer, type });
 
             try {
-                // Limpiar localStorage antes de guardar los nuevos valores
-                localStorage.clear();
+                // Limpia solo los datos de una inspección anterior. Un clear()
+                // completo borraría también la sesión (flotaSesion) que guarda
+                // auth.js y la siguiente pantalla rebotaría al login.
+                ['selectedVehicleId', 'selectedVehicleName', 'selectedVehicleInfo', 'vehicleType', 'selectedAdvisorId', 'selectedAdvisorName', 'selectedAdvisorNombre', 'odometerValue', 'entryType', 'inspectionDate', 'inspectionData'].forEach(function (clave) {
+                    localStorage.removeItem(clave);
+                });
 
                 // Guardar datos en localStorage (sin fecha, se tomará automáticamente)
                 localStorage.setItem('selectedVehicleId', selectedVehicle.id.toString());
