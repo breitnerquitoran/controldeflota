@@ -700,6 +700,58 @@
             object-fit: contain;
         }
 
+        /* Vista en vivo de la cámara */
+        #camera-stream {
+            display: none;
+            width: 100%;
+            max-width: 360px;
+            aspect-ratio: 4 / 3;
+            margin-top: 12px;
+            border-radius: 10px;
+            background: #000;
+            object-fit: cover;
+        }
+
+        #camera-stream.mirrored {
+            transform: scaleX(-1);
+        }
+
+        /* Selector de cámara posterior / frontal (JS lo muestra si hay más de una) */
+        .camera-switcher {
+            display: none;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .camera-switch-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1.5px solid #cfdae2;
+            border-radius: 999px;
+            background: #ffffff;
+            color: #4a5a68;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .camera-switch-btn:hover {
+            border-color: #0097c6;
+            color: #0097c6;
+        }
+
+        .camera-switch-btn.active {
+            background: #0097c6;
+            border-color: #0097c6;
+            color: #ffffff;
+            box-shadow: 0 3px 10px rgba(0, 151, 198, 0.25);
+        }
+
         /* Botón de guardar prominente */
         .modal2 .btn {
             width: 100%;
@@ -2240,6 +2292,10 @@
                 return;
             }
 
+            // Liberar la cámara si quedó activa
+            if (typeof stopCamera === 'function') stopCamera();
+            if (typeof setCaptureButton === 'function') setCaptureButton('idle');
+
             // Ocultar el modal
             modal.style.display = 'none';
 
@@ -2420,11 +2476,9 @@
                 photoPreview.src = '';
             }
 
-            // Resetear video de cámara si existe
-            const videoElement = document.getElementById('camera-stream');
-            if (videoElement) {
-                videoElement.style.display = 'none';
-            }
+            // Detener la cámara y restaurar el botón de captura
+            if (typeof stopCamera === 'function') stopCamera();
+            if (typeof setCaptureButton === 'function') setCaptureButton('idle');
         }
 
 
@@ -2462,26 +2516,129 @@
             });
         }
 
-        // Variables para manejo de cámaras
+        // ===== Cámara: selección entre posterior y frontal =====
+        // 'environment' = cámara posterior (predeterminada), 'user' = cámara frontal
+        let currentFacingMode = 'environment';
         let availableCameras = [];
-        let currentCameraIndex = 0;
 
-        // Función para obtener las cámaras disponibles
         async function getAvailableCameras() {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 availableCameras = devices.filter(device => device.kind === 'videoinput');
-                console.log('Cámaras disponibles:', availableCameras);
-                return availableCameras;
             } catch (error) {
-                console.error('Error al obtener cámaras:', error);
-                return [];
+                console.error('Error al enumerar cámaras:', error);
+                availableCameras = [];
             }
+            return availableCameras;
+        }
+
+        // Detiene el stream activo (libera la cámara) sin tocar la interfaz
+        function stopCameraStream() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+        }
+
+        // Detiene la cámara y oculta la vista de video
+        function stopCamera() {
+            stopCameraStream();
+            const videoElement = document.getElementById('camera-stream');
+            if (videoElement) {
+                videoElement.srcObject = null;
+                videoElement.style.display = 'none';
+            }
+        }
+
+        // Ajusta el botón principal según el estado: 'idle' | 'capture' | 'retake'
+        function setCaptureButton(state) {
+            const captureBtn = document.getElementById('capture-btn');
+            if (!captureBtn) return;
+            if (state === 'capture') {
+                captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capturar Foto';
+                captureBtn.onclick = capturePhoto;
+            } else if (state === 'retake') {
+                captureBtn.innerHTML = '<i class="fas fa-redo"></i> Tomar otra foto';
+                captureBtn.onclick = openCamera;
+            } else {
+                captureBtn.innerHTML = '<i class="fas fa-camera"></i> Tomar Foto';
+                captureBtn.onclick = openCamera;
+                // Sin cámara activa ni foto, el selector de cámara no aplica
+                const switcher = document.getElementById('camera-switcher');
+                if (switcher) switcher.style.display = 'none';
+            }
+        }
+
+        // Crea (una sola vez) el selector de cámara y el elemento de video
+        function ensureCameraElements() {
+            const cameraOptions = document.getElementById('camera-options');
+            let previewContainer = document.getElementById('preview-container');
+            if (!previewContainer) {
+                previewContainer = document.createElement('div');
+                previewContainer.id = 'preview-container';
+                cameraOptions.appendChild(previewContainer);
+            }
+
+            let switcher = document.getElementById('camera-switcher');
+            if (!switcher) {
+                switcher = document.createElement('div');
+                switcher.id = 'camera-switcher';
+                switcher.className = 'camera-switcher';
+                switcher.setAttribute('role', 'group');
+                switcher.setAttribute('aria-label', 'Seleccionar cámara');
+                switcher.innerHTML =
+                    '<button type="button" class="camera-switch-btn" data-facing="environment" onclick="selectCamera(\'environment\')">' +
+                    '<i class="fas fa-camera"></i> Posterior</button>' +
+                    '<button type="button" class="camera-switch-btn" data-facing="user" onclick="selectCamera(\'user\')">' +
+                    '<i class="fas fa-user"></i> Frontal</button>';
+                cameraOptions.insertBefore(switcher, previewContainer);
+            }
+
+            let videoElement = document.getElementById('camera-stream');
+            if (!videoElement) {
+                videoElement = document.createElement('video');
+                videoElement.id = 'camera-stream';
+                videoElement.autoplay = true;
+                videoElement.muted = true;
+                // Necesario en iOS para que el video se reproduzca dentro de la página
+                videoElement.setAttribute('playsinline', '');
+                previewContainer.insertBefore(videoElement, previewContainer.firstChild);
+            }
+
+            return { cameraOptions, previewContainer, switcher, videoElement };
+        }
+
+        // Muestra el selector solo cuando hay más de una cámara (o no se pudo determinar)
+        function updateCameraSwitcher() {
+            const switcher = document.getElementById('camera-switcher');
+            if (!switcher) return;
+            switcher.style.display = availableCameras.length === 1 ? 'none' : 'flex';
+            switcher.querySelectorAll('.camera-switch-btn').forEach(btn => {
+                const active = btn.dataset.facing === currentFacingMode;
+                btn.classList.toggle('active', active);
+                btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+            });
+        }
+
+        // Elige un dispositivo concreto para el modo pedido (respaldo cuando facingMode no funciona,
+        // por ejemplo en computadoras con webcams que no declaran orientación)
+        function pickDeviceForFacing(facingMode) {
+            if (availableCameras.length === 0) return null;
+            const backWords = ['back', 'rear', 'environment', 'trasera', 'posterior'];
+            const frontWords = ['front', 'user', 'frontal', 'delantera', 'facetime'];
+            const words = facingMode === 'user' ? frontWords : backWords;
+            const byLabel = availableCameras.find(camera => {
+                const label = (camera.label || '').toLowerCase();
+                return words.some(word => label.includes(word));
+            });
+            if (byLabel) return byLabel;
+            return facingMode === 'user'
+                ? availableCameras[0]
+                : availableCameras[availableCameras.length - 1];
         }
 
         // Función para abrir cámara
         async function openCamera() {
-            // Verificar si el dispositivo soporta getUserMedia
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 Swal.fire({
                     icon: 'error',
@@ -2493,156 +2650,60 @@
                 return;
             }
 
-            // Obtener cámaras disponibles
-            await getAvailableCameras();
+            const { videoElement } = ensureCameraElements();
 
-            // Si ya hay un stream activo, detenerlo
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
-
-            // Crear elementos necesarios si no existen
-            let videoElement = document.getElementById('camera-stream');
-            let previewContainer = document.getElementById('preview-container');
-            let photoPreview = document.getElementById('photo-preview');
-            let cameraSelector = document.getElementById('camera-selector');
-            let switchCameraBtn = document.getElementById('switch-camera-btn');
-
-            // Resetear la vista previa
+            // Resetear la vista previa de la foto anterior
+            const photoPreview = document.getElementById('photo-preview');
             if (photoPreview) {
                 photoPreview.style.display = 'none';
                 photoPreview.src = '';
             }
 
-            if (!videoElement) {
-                const cameraOptions = document.getElementById('camera-options');
+            videoElement.style.display = 'block';
+            setCaptureButton('capture');
 
-                // Crear selector de cámara si hay múltiples cámaras
-                if (availableCameras.length > 1 && !cameraSelector) {
-                    const selectorContainer = document.createElement('div');
-                    selectorContainer.style.marginBottom = '10px';
-
-                    cameraSelector = document.createElement('select');
-                    cameraSelector.id = 'camera-selector';
-                    cameraSelector.style.marginRight = '10px';
-                    cameraSelector.style.padding = '5px';
-
-                    availableCameras.forEach((camera, index) => {
-                        const option = document.createElement('option');
-                        option.value = index;
-                        option.textContent = camera.label || `Cámara ${index + 1}`;
-                        cameraSelector.appendChild(option);
-                    });
-
-                    cameraSelector.addEventListener('change', (e) => {
-                        currentCameraIndex = parseInt(e.target.value);
-                        startCamera();
-                    });
-
-                    selectorContainer.appendChild(cameraSelector);
-                    cameraOptions.appendChild(selectorContainer);
-                }
-
-                // Crear botón para cambiar cámara (alternativa al selector)
-                if (availableCameras.length > 1 && !switchCameraBtn) {
-                    switchCameraBtn = document.createElement('button');
-                    switchCameraBtn.id = 'switch-camera-btn';
-                    switchCameraBtn.type = 'button';
-                    switchCameraBtn.textContent = '🔄 Cambiar Cámara';
-                    switchCameraBtn.style.marginRight = '10px';
-                    switchCameraBtn.style.padding = '8px 12px';
-                    switchCameraBtn.style.backgroundColor = '#6c757d';
-                    switchCameraBtn.style.color = 'white';
-                    switchCameraBtn.style.border = 'none';
-                    switchCameraBtn.style.borderRadius = '4px';
-                    switchCameraBtn.style.cursor = 'pointer';
-                    switchCameraBtn.onclick = switchCamera;
-                    cameraOptions.appendChild(switchCameraBtn);
-                }
-
-                // Crear stream de video
-                videoElement = document.createElement('video');
-                videoElement.id = 'camera-stream';
-                videoElement.width = 300;
-                videoElement.height = 225;
-                videoElement.autoplay = true;
-                videoElement.style.borderRadius = '8px';
-
-                // Crear contenedor para la vista previa
-                if (!previewContainer) {
-                    previewContainer = document.createElement('div');
-                    previewContainer.id = 'preview-container';
-                    previewContainer.style.marginTop = '10px';
-                    cameraOptions.appendChild(previewContainer);
-                }
-
-                previewContainer.appendChild(videoElement);
-
-                // Crear botón de captura si no existe
-                if (!document.getElementById('capture-photo-btn')) {
-                    const captureBtn = document.createElement('button');
-                    captureBtn.id = 'capture-photo-btn';
-                    captureBtn.type = 'button';
-                    captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capturar Foto';
-                    captureBtn.style.padding = '8px 16px';
-                    captureBtn.style.backgroundColor = '#28a745';
-                    captureBtn.style.color = 'white';
-                    captureBtn.style.border = 'none';
-                    captureBtn.style.borderRadius = '4px';
-                    captureBtn.style.cursor = 'pointer';
-                    captureBtn.style.marginTop = '10px';
-                    captureBtn.onclick = capturePhoto;
-                    cameraOptions.insertBefore(captureBtn, previewContainer);
-                }
-            } else {
-                videoElement.style.display = 'block';
-
-                // Actualizar botón de captura
-                const captureBtn = document.getElementById('capture-photo-btn');
-                if (captureBtn) {
-                    captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capturar Foto';
-                    captureBtn.onclick = capturePhoto;
-                }
-            }
-
-            // Iniciar la cámara
+            await getAvailableCameras();
+            updateCameraSwitcher();
             await startCamera();
         }
 
-        // Función para iniciar la cámara con el dispositivo seleccionado
+        // Inicia la cámara según el modo seleccionado (posterior por defecto)
         async function startCamera() {
             const videoElement = document.getElementById('camera-stream');
             if (!videoElement) return;
 
-            try {
-                // Si ya hay un stream activo, detenerlo
-                if (mediaStream) {
-                    mediaStream.getTracks().forEach(track => track.stop());
-                    mediaStream = null;
+            stopCameraStream();
+
+            const size = { width: { ideal: 1280 }, height: { ideal: 720 } };
+            const attempts = [
+                // 1) Pedir explícitamente la orientación (móviles)
+                { video: { facingMode: { exact: currentFacingMode }, ...size } }
+            ];
+            // 2) Respaldo por dispositivo concreto (computadoras / cámaras sin orientación)
+            const fallbackDevice = pickDeviceForFacing(currentFacingMode);
+            if (fallbackDevice && fallbackDevice.deviceId) {
+                attempts.push({ video: { deviceId: { exact: fallbackDevice.deviceId }, ...size } });
+            }
+            // 3) Último recurso: lo que el navegador ofrezca, prefiriendo la orientación pedida
+            attempts.push({ video: { facingMode: { ideal: currentFacingMode } } });
+
+            let lastError = null;
+            for (const constraints of attempts) {
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    break;
+                } catch (error) {
+                    lastError = error;
+                    console.warn('No se pudo iniciar la cámara con', constraints, error.name);
+                    // Sin permiso no tiene sentido seguir intentando
+                    if (error.name === 'NotAllowedError' || error.name === 'SecurityError') break;
                 }
+            }
 
-                // Configurar constraints para la cámara
-                let constraints = { video: true };
-
-                if (availableCameras.length > 0 && availableCameras[currentCameraIndex]) {
-                    constraints = {
-                        video: {
-                            deviceId: { exact: availableCameras[currentCameraIndex].deviceId },
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    };
-                }
-
-                // Acceder a la cámara
-                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-                videoElement.srcObject = mediaStream;
-
-                console.log(`Cámara iniciada: ${availableCameras[currentCameraIndex]?.label || 'Cámara por defecto'}`);
-
-            } catch (error) {
-                console.error('Error al acceder a la cámara:', error);
+            if (!mediaStream) {
+                console.error('Error al acceder a la cámara:', lastError);
+                stopCamera();
+                setCaptureButton('idle');
                 Swal.fire({
                     icon: 'error',
                     title: 'Error de cámara',
@@ -2650,35 +2711,36 @@
                     confirmButtonText: 'Entendido',
                     confirmButtonColor: '#dc3545'
                 });
+                return;
             }
+
+            videoElement.srcObject = mediaStream;
+
+            // Espejar la vista previa solo con la cámara frontal (la foto se guarda sin espejar)
+            const track = mediaStream.getVideoTracks()[0];
+            const settings = track && track.getSettings ? track.getSettings() : {};
+            const facing = settings.facingMode || currentFacingMode;
+            videoElement.classList.toggle('mirrored', facing === 'user');
+            console.log('Cámara iniciada:', track ? track.label : 'desconocida', '(' + facing + ')');
+
+            // Con el permiso concedido ya se conocen las etiquetas y la cantidad real de cámaras
+            await getAvailableCameras();
+            updateCameraSwitcher();
         }
 
-        // Función para cambiar entre cámaras
-        function switchCamera() {
-            if (availableCameras.length <= 1) return;
+        // Cambia entre cámara posterior ('environment') y frontal ('user')
+        function selectCamera(facingMode) {
+            if (facingMode !== 'user' && facingMode !== 'environment') return;
+            const changed = facingMode !== currentFacingMode;
+            currentFacingMode = facingMode;
+            updateCameraSwitcher();
 
-            currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
-
-            // Actualizar selector si existe
-            const cameraSelector = document.getElementById('camera-selector');
-            if (cameraSelector) {
-                cameraSelector.value = currentCameraIndex;
+            if (mediaStream) {
+                if (changed) startCamera();
+            } else {
+                // Ya se capturó una foto: volver a abrir con la cámara elegida
+                openCamera();
             }
-
-            // Cambiar a la nueva cámara
-            startCamera();
-
-            // Mostrar notificación
-            const cameraName = availableCameras[currentCameraIndex]?.label || `Cámara ${currentCameraIndex + 1}`;
-            Swal.fire({
-                icon: 'info',
-                title: 'Cámara cambiada',
-                text: `Usando: ${cameraName}`,
-                timer: 2000,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end'
-            });
         }
 
         // Función para capturar una foto
@@ -2686,33 +2748,35 @@
             const videoElement = document.getElementById('camera-stream');
             const photoPreview = document.getElementById('photo-preview');
 
-            if (!videoElement || !photoPreview) return;
+            if (!videoElement || !photoPreview || !mediaStream) return;
+            if (!videoElement.videoWidth || !videoElement.videoHeight) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Un momento',
+                    text: 'La cámara aún se está iniciando. Intente de nuevo.',
+                    timer: 1800,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+                return;
+            }
 
             // Crear un canvas para capturar la imagen
             const canvas = document.createElement('canvas');
             canvas.width = videoElement.videoWidth;
             canvas.height = videoElement.videoHeight;
             const ctx = canvas.getContext('2d');
-
-            // Dibujar la imagen del video en el canvas
             ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
 
             // Convertir el canvas a una URL de datos
             currentPhotoData = canvas.toDataURL('image/jpeg');
 
-            // Mostrar la vista previa
+            // Mostrar la vista previa y liberar la cámara
             photoPreview.src = currentPhotoData;
             photoPreview.style.display = 'block';
-
-            // Ocultar el video y mostrar la vista previa
-            videoElement.style.display = 'none';
-
-            // Cambiar el texto del botón de captura
-            const captureBtn = document.getElementById('capture-photo-btn');
-            if (captureBtn) {
-                captureBtn.textContent = 'Tomar otra foto';
-                captureBtn.onclick = openCamera;
-            }
+            stopCamera();
+            setCaptureButton('retake');
         }
 
         // Event listener para cerrar modal al hacer clic fuera
@@ -3052,11 +3116,9 @@
                         photoPreview.src = '';
                     }
 
-                    // Resetear video de cámara si existe
-                    const videoElement = document.getElementById('camera-stream');
-                    if (videoElement) {
-                        videoElement.style.display = 'none';
-                    }
+                    // Detener la cámara y restaurar el botón de captura
+                    if (typeof stopCamera === 'function') stopCamera();
+                    if (typeof setCaptureButton === 'function') setCaptureButton('idle');
                 }
 
                 console.log('Modal fix script cargado directamente en HTML');
@@ -3156,341 +3218,6 @@
             })();
         </script>
 
-        <script>
-            // Función para mostrar tooltip
-            function showTooltip(evt, text) {
-                const tooltip = document.getElementById('tooltip');
-                if (!tooltip) {
-                    // Crear tooltip si no existe
-                    const newTooltip = document.createElement('div');
-                    newTooltip.id = 'tooltip';
-                    newTooltip.style.position = 'absolute';
-                    newTooltip.style.backgroundColor = '#333';
-                    newTooltip.style.color = '#fff';
-                    newTooltip.style.padding = '5px 10px';
-                    newTooltip.style.borderRadius = '5px';
-                    newTooltip.style.pointerEvents = 'none';
-                    newTooltip.style.fontSize = '12px';
-                    newTooltip.style.zIndex = '1000';
-                    document.body.appendChild(newTooltip);
-                }
-
-                const activeTooltip = document.getElementById('tooltip');
-                if (activeTooltip) {
-                    activeTooltip.textContent = text;
-                    activeTooltip.style.left = `${evt.clientX + 15}px`;
-                    activeTooltip.style.top = `${evt.clientY + 15}px`;
-                    activeTooltip.style.display = 'block';
-                    activeTooltip.style.visibility = 'visible';
-                }
-            }
-
-            // Función para ocultar tooltip
-            function hideTooltip() {
-                const tooltip = document.getElementById('tooltip');
-                if (tooltip) {
-                    tooltip.style.display = 'none';
-                    tooltip.style.visibility = 'hidden';
-                }
-            }
-
-            // Función para abrir modal
-            function openModal(title) {
-                const modal = document.getElementById('modal-overlay');
-                const modalTitle = document.getElementById('modal-title');
-
-                if (!modal || !modalTitle) {
-                    console.error('Modal elements not found');
-                    return;
-                }
-
-                // Formatear el título para mejor visualización
-                const formattedTitle = typeof title === 'string' ? title.replace(/_/g, ' ') : title;
-                modalTitle.textContent = formattedTitle;
-
-                // Mostrar el modal
-                modal.style.display = 'flex';
-
-                // Resetear el formulario del modal
-                const conditionForm = document.getElementById('condition-form');
-                if (conditionForm) {
-                    conditionForm.reset();
-                }
-
-                console.log('Modal abierto para:', formattedTitle);
-            }
-
-            // Función para cerrar modal
-            function closeModal() {
-                const modal = document.getElementById('modal-overlay');
-                if (!modal) {
-                    console.error('Modal element not found');
-                    return;
-                }
-
-                // Ocultar el modal
-                modal.style.display = 'none';
-
-                console.log('Modal cerrado');
-            }
-
-
-
-            // Variables para la cámara
-            let mediaStream = null;
-            let currentPhotoData = null;
-
-            // Variables para manejo de cámaras (duplicado para consistencia)
-            let availableCameras2 = [];
-            let currentCameraIndex2 = 0;
-
-            // Función para obtener las cámaras disponibles (duplicado)
-            async function getAvailableCameras2() {
-                try {
-                    const devices = await navigator.mediaDevices.enumerateDevices();
-                    availableCameras2 = devices.filter(device => device.kind === 'videoinput');
-                    console.log('Cámaras disponibles (segunda función):', availableCameras2);
-                    return availableCameras2;
-                } catch (error) {
-                    console.error('Error al obtener cámaras:', error);
-                    return [];
-                }
-            }
-
-            // Función para abrir cámara (versión actualizada)
-            async function openCamera() {
-                // Verificar si el dispositivo soporta getUserMedia
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    alert('Su navegador no soporta acceso a la cámara');
-                    return;
-                }
-
-                // Obtener cámaras disponibles
-                await getAvailableCameras2();
-
-                // Si ya hay un stream activo, detenerlo
-                if (mediaStream) {
-                    mediaStream.getTracks().forEach(track => track.stop());
-                    mediaStream = null;
-                }
-
-                // Crear elementos necesarios si no existen
-                let videoElement = document.getElementById('camera-stream');
-                let previewContainer = document.getElementById('preview-container');
-                let photoPreview = document.getElementById('photo-preview');
-                let cameraSelector = document.getElementById('camera-selector-2');
-                let switchCameraBtn = document.getElementById('switch-camera-btn-2');
-
-                // Resetear la vista previa
-                if (photoPreview) {
-                    photoPreview.style.display = 'none';
-                    photoPreview.src = '';
-                }
-
-                if (!videoElement) {
-                    const cameraOptions = document.getElementById('camera-options');
-
-                    // Crear selector de cámara si hay múltiples cámaras
-                    if (availableCameras2.length > 1 && !cameraSelector) {
-                        const selectorContainer = document.createElement('div');
-                        selectorContainer.style.marginBottom = '10px';
-                        selectorContainer.style.textAlign = 'center';
-
-                        const selectorLabel = document.createElement('label');
-                        selectorLabel.textContent = 'Seleccionar cámara: ';
-                        selectorLabel.style.marginRight = '10px';
-                        selectorLabel.style.fontWeight = 'bold';
-
-                        cameraSelector = document.createElement('select');
-                        cameraSelector.id = 'camera-selector-2';
-                        cameraSelector.style.marginRight = '10px';
-                        cameraSelector.style.padding = '5px 10px';
-                        cameraSelector.style.borderRadius = '4px';
-                        cameraSelector.style.border = '1px solid #ccc';
-
-                        availableCameras2.forEach((camera, index) => {
-                            const option = document.createElement('option');
-                            option.value = index;
-                            // Intentar identificar cámara frontal/posterior
-                            let cameraName = camera.label || `Cámara ${index + 1}`;
-                            if (cameraName.toLowerCase().includes('back') || cameraName.toLowerCase().includes('rear')) {
-                                cameraName += ' (Posterior)';
-                            } else if (cameraName.toLowerCase().includes('front') || cameraName.toLowerCase().includes('user')) {
-                                cameraName += ' (Frontal)';
-                            }
-                            option.textContent = cameraName;
-                            cameraSelector.appendChild(option);
-                        });
-
-                        cameraSelector.addEventListener('change', (e) => {
-                            currentCameraIndex2 = parseInt(e.target.value);
-                            startCamera2();
-                        });
-
-                        selectorContainer.appendChild(selectorLabel);
-                        selectorContainer.appendChild(cameraSelector);
-                        cameraOptions.appendChild(selectorContainer);
-                    }
-
-                    // Crear botón para cambiar cámara (alternativa al selector)
-                    if (availableCameras2.length > 1 && !switchCameraBtn) {
-                        switchCameraBtn = document.createElement('button');
-                        switchCameraBtn.id = 'switch-camera-btn-2';
-                        switchCameraBtn.type = 'button';
-                        switchCameraBtn.textContent = '🔄 Cambiar Cámara';
-                        switchCameraBtn.style.marginRight = '10px';
-                        switchCameraBtn.style.marginBottom = '10px';
-                        switchCameraBtn.style.padding = '8px 12px';
-                        switchCameraBtn.style.backgroundColor = '#6c757d';
-                        switchCameraBtn.style.color = 'white';
-                        switchCameraBtn.style.border = 'none';
-                        switchCameraBtn.style.borderRadius = '4px';
-                        switchCameraBtn.style.cursor = 'pointer';
-                        switchCameraBtn.onclick = switchCamera2;
-                        cameraOptions.appendChild(switchCameraBtn);
-                    }
-
-                    // Crear stream de video
-                    videoElement = document.createElement('video');
-                    videoElement.id = 'camera-stream';
-                    videoElement.width = 300;
-                    videoElement.height = 225;
-                    videoElement.autoplay = true;
-                    videoElement.style.borderRadius = '8px';
-                    videoElement.style.border = '2px solid #ddd';
-
-                    // Crear contenedor para la vista previa
-                    if (!previewContainer) {
-                        previewContainer = document.createElement('div');
-                        previewContainer.id = 'preview-container';
-                        previewContainer.style.marginTop = '10px';
-                        previewContainer.style.textAlign = 'center';
-                        cameraOptions.appendChild(previewContainer);
-                    }
-
-                    previewContainer.appendChild(videoElement);
-
-                    // Crear botón de captura si no existe
-                    if (!document.getElementById('capture-btn')) {
-                        const captureBtn = document.createElement('button');
-                        captureBtn.id = 'capture-btn';
-                        captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capturar Foto';
-                        captureBtn.style.padding = '8px 16px';
-                        captureBtn.style.backgroundColor = '#28a745';
-                        captureBtn.style.color = 'white';
-                        captureBtn.style.border = 'none';
-                        captureBtn.style.borderRadius = '4px';
-                        captureBtn.style.cursor = 'pointer';
-                        captureBtn.style.marginTop = '10px';
-                        captureBtn.addEventListener('click', capturePhoto);
-                        cameraOptions.insertBefore(captureBtn, previewContainer);
-                    }
-                } else {
-                    videoElement.style.display = 'block';
-
-                    // Actualizar botón de captura
-                    const captureBtn = document.getElementById('capture-btn');
-                    if (captureBtn) {
-                        captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capturar Foto';
-                        captureBtn.onclick = capturePhoto;
-                    }
-                }
-
-                // Iniciar la cámara
-                await startCamera2();
-            }
-
-            // Función para iniciar la cámara con el dispositivo seleccionado (duplicado)
-            async function startCamera2() {
-                const videoElement = document.getElementById('camera-stream');
-                if (!videoElement) return;
-
-                try {
-                    // Si ya hay un stream activo, detenerlo
-                    if (mediaStream) {
-                        mediaStream.getTracks().forEach(track => track.stop());
-                        mediaStream = null;
-                    }
-
-                    // Configurar constraints para la cámara
-                    let constraints = {
-                        video: {
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    };
-
-                    if (availableCameras2.length > 0 && availableCameras2[currentCameraIndex2]) {
-                        constraints.video.deviceId = { exact: availableCameras2[currentCameraIndex2].deviceId };
-                    }
-
-                    // Acceder a la cámara
-                    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    videoElement.srcObject = mediaStream;
-
-                    const cameraName = availableCameras2[currentCameraIndex2]?.label || 'Cámara por defecto';
-                    console.log(`Cámara iniciada: ${cameraName}`);
-
-                } catch (error) {
-                    console.error('Error al acceder a la cámara:', error);
-                    alert('No se pudo acceder a la cámara seleccionada. Verifique los permisos.');
-                }
-            }
-
-            // Función para cambiar entre cámaras (duplicado)
-            function switchCamera2() {
-                if (availableCameras2.length <= 1) return;
-
-                currentCameraIndex2 = (currentCameraIndex2 + 1) % availableCameras2.length;
-
-                // Actualizar selector si existe
-                const cameraSelector = document.getElementById('camera-selector-2');
-                if (cameraSelector) {
-                    cameraSelector.value = currentCameraIndex2;
-                }
-
-                // Cambiar a la nueva cámara
-                startCamera2();
-
-                // Mostrar notificación
-                const cameraName = availableCameras2[currentCameraIndex2]?.label || `Cámara ${currentCameraIndex2 + 1}`;
-                alert(`Cámara cambiada a: ${cameraName}`);
-            }
-
-            // Función para capturar foto
-            function capturePhoto() {
-                const videoElement = document.getElementById('camera-stream');
-                const photoPreview = document.getElementById('photo-preview');
-
-                if (!videoElement || !photoPreview) return;
-
-                // Crear un canvas para capturar la imagen
-                const canvas = document.createElement('canvas');
-                canvas.width = videoElement.videoWidth;
-                canvas.height = videoElement.videoHeight;
-                const ctx = canvas.getContext('2d');
-
-                // Dibujar la imagen del video en el canvas
-                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-
-                // Convertir el canvas a una URL de datos
-                currentPhotoData = canvas.toDataURL('image/jpeg');
-
-                // Mostrar la vista previa
-                photoPreview.src = currentPhotoData;
-                photoPreview.style.display = 'block';
-
-                // Ocultar el video y mostrar la vista previa
-                videoElement.style.display = 'none';
-
-                // Cambiar el texto del botón de captura
-                const captureBtn = document.getElementById('capture-btn');
-                if (captureBtn) {
-                    captureBtn.textContent = 'Tomar otra foto';
-                    captureBtn.onclick = openCamera;
-                }
-            }
-        </script>
 </body>
 
 </html>
