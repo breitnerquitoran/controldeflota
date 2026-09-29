@@ -20,7 +20,6 @@
     // Qué rol puede abrir cada pantalla. El administrador ve todo.
     var PAGINAS = {
         'index.html': ['usuario', 'admin'],
-        'inspection.html': ['usuario', 'admin'],
         'historico.html': ['usuario', 'admin'],
         'odometros.html': ['maestranza', 'admin'],
         'maestranza.html': ['maestranza', 'admin'],
