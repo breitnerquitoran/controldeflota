@@ -662,7 +662,7 @@
         }
 
         .ins-diagrama.tipo-auto svg {
-            aspect-ratio: 4 / 3;
+            aspect-ratio: 3 / 4;
         }
 
         .ins-diagrama.tipo-moto svg {
@@ -2728,7 +2728,7 @@
 
                 try {
                     if (!diagramasCargados[tipo]) {
-                        const respuesta = await fetch(tipo === 'moto' ? 'moto.html' : 'car.html');
+                        const respuesta = await fetch(tipo === 'moto' ? 'moto.html' : 'car_new.html');
                         if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
                         diagramasCargados[tipo] = await respuesta.text();
                     }
