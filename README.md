@@ -74,7 +74,7 @@ El sistema arranca en `login.html`: sin sesión iniciada ninguna pantalla se abr
 
 | Rol | Pantallas |
 | --- | --- |
-| **Usuario** | Inicio (nueva inspección), Inspección e Histórico |
+| **Usuario** | Inicio (inspección en una sola pantalla vertical: datos del movimiento, daños y firma) e Histórico |
 | **Maestranza** | Maestranza y Odómetros, **sin ver costos ni presupuestos** |
 | **Administración** | Todas las anteriores más Administración, Usuarios y la información económica |
 

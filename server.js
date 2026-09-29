@@ -944,8 +944,10 @@ app.get('/usuarios.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'usuarios.html'));
 });
 
+// La inspección se llena ahora en la misma pantalla de inicio: la dirección
+// antigua se conserva para no romper accesos guardados en la tablet.
 app.get('/inspection.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'inspection.html'));
+    res.redirect('/index.html');
 });
 
 app.get('/admin.html', (req, res) => {
